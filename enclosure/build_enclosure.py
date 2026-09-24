@@ -10,11 +10,11 @@ Or without the FreeCAD window, from the project root:
     "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read(), {'__file__': r'enclosure/build_enclosure.py'})"
 
 All sizes in mm. Coordinates: X along the SBS length (127.76), Y along the width (85.48),
-Z up; origin at the centre of the footprint, on the bench. USB in the -Y wall near -X,
-24V in the +X end.
+Z up; origin at the centre of the footprint, on the bench. All connectors in the +X end.
 
 Parts
-    base      tray with walls, board standoffs, lid screw posts, USB window (-Y), DC jack hole (+X)
+    base      tray with walls, board standoffs, lid screw posts, connector panel in the +X end
+              (panel USB-C, 24V DC jack, 8 mm LED, 7 mm reset button), vents
     lid       top plate; the motor hangs under it (4 x M3), lid screws into the base (4 x M3)
     lid_text  engraved lettering as a separate body - print it in a second colour (AMS)
     hub       clamps the motor shaft (D-bore + M3 set screw in a heat insert)
@@ -64,21 +64,29 @@ POST_INSET = 3.0                          # post centre from the inner wall corn
 # Controller board: breadboard-style PCB (89 x 52) with the power rails cut off and cut to
 # 22 rows -> 32 x 60 mm, on the -X side of the motor, in the -Y corner (see perfboard/)
 PB_X, PB_Y, PB_T = 32.0, 60.0, 1.6        # (MEASURE after cutting)
-PB_X0, PB_Y0 = -54.0, -38.1               # board corner nearest the USB (-X, -Y)
+PB_X0, PB_Y0 = -54.0, -20.0               # board corner at -X, -Y (row 1 / XIAO end)
 PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.2   # M2.5 self-tapping screws
 PB_HOLE_INSET = 2.5                       # drill the 4 mounting holes this far from the edges
 PB_PARTS_H = 22.0         # tallest part on the board (TMC2209 + heatsink on female headers)
 
-# USB-C window in the -Y (long) wall. The XIAO straddles the board's centre channel with its
-# USB-C towards -Y: centre = 6 hole pitches from column A (board row 1 is at the -Y end).
-USB_X = PB_X0 + (PB_X - 11 * 2.54) / 2 + 6 * 2.54   # (MEASURE after soldering)
-USB_Z = 21.3              # (MEASURE after soldering) centre height of the USB-C above the bench
-USB_W, USB_H = 13.5, 8.0  # lets the plug's plastic overmould in, so the plug seats fully
+# The XIAO's USB-C (it straddles the board channel, USB towards -Y). A panel-mount USB-C
+# extension cable runs from it to the connector panel; a 90 deg (up-angle) USB-C adapter
+# on the XIAO turns the cable upwards - there are ~20 mm in front of the XIAO for it.
+USB_X = PB_X0 + (PB_X - 11 * 2.54) / 2 + 6 * 2.54
+USB_Z = 21.3              # centre height of the XIAO's USB-C (female headers 8.5 mm)
+PLUG_ZONE = 14.0          # room the 90 deg adapter takes in front of the XIAO (-Y)
 
-# DC jack 5.5 x 2.1, panel mount, on the +X end
-DC_Y, DC_Z = 0.0, 26.0
-DC_HOLE_D = 8.0           # (MEASURE) thread of your panel jack (DC-022B = 8 mm)
-DC_DEPTH = 14.0           # how far the jack reaches into the box
+# Connector panel: the +X end wall. Seen from outside: y to the right, z up.
+# (kind, y, z, size, label). size: hole diameter, or (width, height) for the USB cut-out
+PANEL = [
+    ("usb", -14.0, 17.0, (12.5, 7.5), "USB"),    # (MEASURE) panel USB-C body cut-out
+    ("dc", 16.0, 17.0, 8.0, "24V DC"),           # (MEASURE) DC-022B jack thread = 8 mm
+    ("hole", -10.0, 38.0, 8.0, "STATUS"),        # 8 mm LED holder
+    ("hole", 10.0, 38.0, 7.0, "RESET"),          # 7 mm push button
+]
+USB_PANEL_SCREWS = 28.0   # (MEASURE) centre distance of the 2 screws of the panel USB-C
+USB_PANEL_SCREW_D = 3.4   # (MEASURE) clearance hole for those screws
+PANEL_DEPTH = {"usb": 22.0, "dc": 14.0, "hole": 22.0}   # how far each part reaches inside
 
 # Ventilation slots in the long walls, next to the driver
 VENT_N, VENT_W, VENT_Z0, VENT_Z1 = 6, 2.5, 14.0, 34.0
@@ -192,14 +200,23 @@ def make_base():
             base = base.fuse(cyl(PB_STANDOFF_D / 2, FLOOR - 0.1, PB_STANDOFF_H + 0.1, hx, hy))
             base = base.cut(cyl(PB_PILOT_D / 2, FLOOR, PB_STANDOFF_H + 1, hx, hy))
 
-    # USB-C window in the -Y wall
-    usb = box(USB_X - USB_W / 2, USB_X + USB_W / 2, -FOOT_Y / 2 - 1, -IN_Y + 0.01,
-              USB_Z - USB_H / 2, USB_Z + USB_H / 2)
-    base = base.cut(usb)
-
-    # DC jack (+X end)
-    base = base.cut(Part.makeCylinder(DC_HOLE_D / 2, WALL + 2, V(FOOT_X / 2 + 1, DC_Y, DC_Z),
-                                      V(-1, 0, 0)))
+    # connector panel in the +X end wall, each opening labelled above it
+    x_out, x_in = FOOT_X / 2 + 1, IN_X - 1
+    for kind, y, z, size, label in PANEL:
+        if kind == "usb":
+            w, h = size
+            base = base.cut(box(x_in, x_out, y - w / 2, y + w / 2, z - h / 2, z + h / 2))
+            for sy in (-1, 1):
+                base = base.cut(Part.makeCylinder(USB_PANEL_SCREW_D / 2, WALL + 2,
+                                                  V(x_out, y + sy * USB_PANEL_SCREWS / 2, z),
+                                                  V(-1, 0, 0)))
+            top = z + h / 2
+        else:
+            base = base.cut(Part.makeCylinder(size / 2, WALL + 2, V(x_out, y, z), V(-1, 0, 0)))
+            top = z + size / 2
+        # +X wall, read from outside: right = +Y, up = +Z, outward = +X
+        base = base.cut(placed(text_solid(label, WALL_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(0, 0, 1),
+                               V(1, 0, 0), V(FOOT_X / 2, y, top + 3.0 + WALL_TEXT_H / 2)))
 
     # ventilation slots, both long walls, beside the perfboard
     # clear of the corner posts (they end at x = -IN_X + POST_INSET + POST_R)
@@ -208,21 +225,12 @@ def make_base():
     xs = [x_first + i * (x_last - x_first) / (VENT_N - 1) for i in range(VENT_N)]
     for x in xs:
         for sy in (-1, 1):
-            if sy < 0 and abs(x - USB_X) < USB_W / 2 + VENT_W / 2 + 2:
-                continue                      # keep the -Y wall solid around the USB window
             slot = box(x - VENT_W / 2, x + VENT_W / 2,
                        sy * IN_Y - 1 if sy > 0 else -FOOT_Y / 2 - 1,
                        FOOT_Y / 2 + 1 if sy > 0 else -IN_Y + 1,
                        VENT_Z0, VENT_Z1)
             base = base.cut(slot)
 
-    # wall lettering
-    # -Y wall, read from outside: right = +X, up = +Z, outward = -Y
-    usb_txt = placed(text_solid("USB", WALL_TEXT_H, TEXT_DEPTH), V(1, 0, 0), V(0, 0, 1),
-                     V(0, -1, 0), V(USB_X, -FOOT_Y / 2, USB_Z + USB_H / 2 + 4.5))
-    dc_txt = placed(text_solid("24V DC", WALL_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(0, 0, 1),
-                    V(1, 0, 0), V(FOOT_X / 2, DC_Y, DC_Z + DC_HOLE_D / 2 + 4.5))
-    base = base.cut(usb_txt).cut(dc_txt)
     return base.removeSplitter()
 
 
@@ -336,8 +344,18 @@ def reference_models():
     row = lambda r: PB_Y0 + (PB_Y - 21 * 2.54) / 2 + (r - 1) * 2.54
     c1 = box(PB_X0 - 6.5, PB_X0, row(10), row(10) + 12.0, PB_Z0 + PB_T, PB_Z0 + PB_T + 6.5)
     parts = parts.fuse(c1)
-    usb = box(USB_X - 4.5, USB_X + 4.5, -IN_Y + 0.2, -IN_Y + 3.0, USB_Z - 1.7, USB_Z + 1.7)
-    jack = Part.makeCylinder(5.5, DC_DEPTH, V(IN_X, DC_Y, DC_Z), V(-1, 0, 0))
+    # the 90 deg USB-C adapter in front of the XIAO (towards -Y), cable going up
+    usb_edge = row(4) - 10.5 - 0.8           # XIAO centre row 4, half length, receptacle
+    usb = box(USB_X - 7, USB_X + 7, usb_edge - PLUG_ZONE, usb_edge, USB_Z - 4, USB_Z + 15)
+    panel = []
+    for kind, y, z, size, label in PANEL:
+        d = PANEL_DEPTH[kind]
+        if kind == "usb":
+            w, h = size
+            panel.append(box(IN_X - d, IN_X, y - w / 2 - 3, y + w / 2 + 3, z - h / 2 - 2, z + h / 2 + 2))
+        else:
+            panel.append(Part.makeCylinder(size / 2 + 2.5, d, V(IN_X, y, z), V(-1, 0, 0)))
+    jack = fuse_all(panel)
     dish = cyl(DISH_D / 2, PLATE_TOP, 14.0).cut(cyl(DISH_D / 2 - 1.2, PLATE_TOP + 1.2, 14))
     return {"motor": motor, "shaft": shaft, "perfboard": board, "board parts": parts,
             "usb-c": usb, "dc jack": jack, "dish": dish}
