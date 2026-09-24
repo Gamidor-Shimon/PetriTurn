@@ -1,0 +1,12 @@
+# Python environment (rebuild with: python -m venv .venv, then pip install -r requirements.txt)
+.venv/
+__pycache__/
+*.pyc
+
+# GUI session logs
+host/logs/
+
+# PyInstaller output
+build/
+dist/
+*.spec
