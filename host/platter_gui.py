@@ -424,7 +424,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.turns_spin.setDecimals(3)
         self.turns_spin.setSingleStep(0.25)
         self.turns_spin.setValue(1)
-        self.turns_spin.setToolTip("Dish revolutions. Negative turns the other way.")
+        self.turns_spin.setToolTip("Dish revolutions: + clockwise, − counter-clockwise (looking down at the dish)")
         self.rpm_spin = QtWidgets.QDoubleSpinBox()
         self.rpm_spin.setDecimals(1)
         self.rpm_spin.setValue(20)
@@ -434,7 +434,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wait_spin.setSingleStep(0.5)
         self.wait_spin.setValue(1)
         self.wait_spin.setToolTip("Pause, in seconds. The dish stays as it is (held or free).")
-        for col, (title, w) in enumerate((("action", self.action_box), ("turns", self.turns_spin),
+        for col, (title, w) in enumerate((("action", self.action_box), ("turns  (+ cw, − ccw)", self.turns_spin),
                                           ("rpm", self.rpm_spin), ("wait [s]", self.wait_spin))):
             form.addWidget(muted(title), 0, col)
             form.addWidget(w, 1, col)
@@ -526,12 +526,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.man_turns.setDecimals(3)
         self.man_turns.setSingleStep(0.25)
         self.man_turns.setValue(1)
-        self.man_turns.setToolTip("Dish revolutions. Negative turns the other way.")
+        self.man_turns.setToolTip("Dish revolutions: + clockwise, − counter-clockwise (looking down at the dish)")
         self.man_rpm = QtWidgets.QDoubleSpinBox()
         self.man_rpm.setDecimals(1)
         self.man_rpm.setValue(20)
         self.man_rpm.setToolTip("Dish speed, revolutions per minute")
-        grid.addWidget(muted("turns"), 0, 0)
+        grid.addWidget(muted("turns  (+ cw, − ccw)"), 0, 0)
         grid.addWidget(self.man_turns, 1, 0)
         grid.addWidget(muted("rpm"), 0, 1)
         grid.addWidget(self.man_rpm, 1, 1)
@@ -541,8 +541,9 @@ class MainWindow(QtWidgets.QMainWindow):
         go.clicked.connect(self.manual_rotate)
         grid.addWidget(go, 1, 2)
         self._motion_widgets.append(go)
-        cl.addWidget(muted("+ and − are the two directions of the dish. If + turns the wrong "
-                           "way, set INVERT_DIR in the firmware.", wrap=True))
+        cl.addWidget(muted("+ turns clockwise, − counter-clockwise, looking down at the dish. "
+                           "The robot does the same with  platter.exe rotate <turns> <rpm> cw|ccw.",
+                           wrap=True))
         row.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
 
         # live status
@@ -614,10 +615,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         f, cl = card("robot command line")
         usage = QtWidgets.QLabel(
-            "platter.exe run <slot>          run a stored program, exit when it ends\n"
-            "platter.exe rotate <deg> <rpm>  one-off rotation\n"
-            "platter.exe enable | disable    hold / release the dish\n"
-            "platter.exe status | list\n\n"
+            "platter.exe run <slot>                   run a stored program, exit when it ends\n"
+            "platter.exe rotate <turns> <rpm> cw|ccw  rotate without a program\n"
+            "platter.exe hold | release              lock / free the dish\n"
+            "platter.exe stop | status | list\n\n"
             "exit 0 = OK   1 = timeout, device error or stopped   2 = bad command or empty slot")
         usage.setStyleSheet("font-family: Consolas, monospace;")
         cl.addWidget(usage)

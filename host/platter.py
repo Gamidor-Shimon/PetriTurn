@@ -2,14 +2,18 @@
 platter — command-line bridge between the robot and the PetriPlatter ESP32.
 
 Usage:
-    platter run <slot>             run a stored program, block until it ends   <- robot uses this
-    platter list                   list stored programs
-    platter rotate <deg> <rpm>     one-off rotation, block until it ends
-    platter enable                 hold the dish (coils energised)
-    platter disable                release the dish
-    platter status                 print driver/motor status
+    platter run <slot>                    run a stored program, block until it ends
+    platter rotate <turns> <rpm> cw|ccw   rotate without a program, block until it ends
+    platter hold                          lock the dish (motor energised)
+    platter release                       free the dish (turns by hand)
+    platter stop                          decelerate and stop a motion
+    platter status                        print driver/motor status
+    platter list                          list stored programs
     platter ping
-    platter ports                  list the serial ports on this PC
+    platter ports                         list the serial ports on this PC
+
+    cw / ccw = clockwise / counter-clockwise, looking down at the dish.
+    enable / disable are kept as aliases of hold / release.
 
 Options:
     --port COM6                    serial port for this call only (default: platter.ini)
@@ -54,11 +58,20 @@ def parse_args():
     run = sub.add_parser("run")
     run.add_argument("slot", type=int)
     rot = sub.add_parser("rotate")
-    rot.add_argument("deg", type=float)
-    rot.add_argument("rpm", type=float)
-    for name in ("list", "enable", "disable", "status", "ping", "ports"):
+    rot.add_argument("turns", type=positive_float, help="dish revolutions, e.g. 2 or 0.25")
+    rot.add_argument("rpm", type=positive_float, help="speed, revolutions per minute")
+    rot.add_argument("direction", type=str.lower, choices=("cw", "ccw"),
+                     help="cw = clockwise, ccw = counter-clockwise (looking down at the dish)")
+    for name in ("hold", "release", "enable", "disable", "stop", "list", "status", "ping", "ports"):
         sub.add_parser(name)
     return p.parse_args()
+
+
+def positive_float(text: str) -> float:
+    value = float(text)
+    if not value > 0:
+        raise argparse.ArgumentTypeError(f"must be greater than 0: {text}")
+    return value
 
 
 def execute(link: PlatterLink, args) -> str:
@@ -67,14 +80,17 @@ def execute(link: PlatterLink, args) -> str:
         link.run_program(args.slot)
         return "OK"
     if args.action == "rotate":
-        link.rotate(args.deg, args.rpm)
+        # firmware convention: positive degrees = clockwise seen from above
+        deg = round(args.turns * 360, 3) * (1 if args.direction == "cw" else -1)
+        link.rotate(deg, args.rpm)
         return "OK"
     if args.action == "list":
         programs = link.list_programs()
         return "\n".join(f"{slot}\t{name}" for slot, name in sorted(programs.items())) or "(no programs)"
     if args.action == "status":
         return "OK " + " ".join(f"{k}={v}" for k, v in link.status().items())
-    {"enable": link.enable, "disable": link.disable, "ping": link.ping}[args.action]()
+    {"hold": link.enable, "enable": link.enable, "release": link.disable, "disable": link.disable,
+     "stop": lambda: link.command("STOP"), "ping": link.ping}[args.action]()
     return "OK"
 
 

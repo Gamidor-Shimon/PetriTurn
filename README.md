@@ -27,8 +27,9 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 6. [שורת הפקודה לרובוט](#שורת-הפקודה-לרובוט)
 7. [פרוטוקול התקשורת עם הבקר](#פרוטוקול-התקשורת-עם-הבקר)
 8. [פתרון תקלות](#פתרון-תקלות)
-9. [בניית קובצי הפעלה (exe)](#בניית-קובצי-הפעלה-exe)
-10. [כללי בטיחות](#כללי-בטיחות)
+9. [בניית חבילה ללקוח](#בניית-חבילה-ללקוח)
+10. [התקנה אצל הלקוח](#התקנה-אצל-הלקוח)
+11. [כללי בטיחות](#כללי-בטיחות)
 
 ---
 
@@ -38,7 +39,8 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 SBS_PetriPlater/
 ├── README.md                      this document
 ├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
-├── PetriPlatter.bat               double-click to start the GUI
+├── PetriPlatter.bat               double-click to start the GUI (development PC)
+├── build.bat                      builds the customer package into dist\PetriPlatter
 ├── requirements.txt               Python packages
 ├── firmware/
 │   └── PetriPlatter/
@@ -236,22 +238,51 @@ poll_ms = 1000       ; GUI live-status refresh, milliseconds
 
 ## שורת הפקודה לרובוט
 
+יש שתי דרכים לעבוד עם הרובוט:
+
+**1. תוכנית שמורה** — הוגדרה מראש ב-GUI:
+
 ```bash
 platter.exe run 3
 ```
 
+**2. פקודות ישירות, בלי תוכנית** — הרובוט שולט בכל שלב בעצמו. למשל:
+
+```bash
+platter.exe hold
+```
+```bash
+platter.exe rotate 2 30 cw
+```
+```bash
+platter.exe rotate 0.5 10 ccw
+```
+```bash
+platter.exe release
+```
+
+(נועלים את הצלחת, ממקמים את הלופה, מסובבים 2 סיבובים עם כיוון השעון ב-30 RPM,
+חצי סיבוב נגד כיוון השעון ב-10 RPM, ומשחררים.)
+
 | פקודה | מה היא עושה |
 |---|---|
 | `platter run <slot>` | מריץ תוכנית שמורה. **חוסם עד סוף התוכנית**, ואז יוצא |
-| `platter rotate <deg> <rpm>` | סיבוב חד-פעמי במעלות (360 = סיבוב). חוסם עד הסוף |
-| `platter enable` | מחזיק את הצלחת |
-| `platter disable` | משחרר את הצלחת |
+| `platter rotate <turns> <rpm> cw` | סיבוב **עם** כיוון השעון. חוסם עד סוף הסיבוב |
+| `platter rotate <turns> <rpm> ccw` | סיבוב **נגד** כיוון השעון. חוסם עד סוף הסיבוב |
+| `platter hold` | נועל את הצלחת (המנוע מחזיק) |
+| `platter release` | משחרר את הצלחת (מסתובבת ביד) |
+| `platter stop` | עוצר תנועה (האטה ועצירה) |
 | `platter status` | מצב הבקר (ראו [STATUS](#שדות-status)) |
 | `platter list` | רשימת התוכניות השמורות |
 | `platter ping` | בדיקת חיבור |
 | `platter ports` | הפורטים הזמינים במחשב |
 
-אפשרות: `--port COM7` — פורט לקריאה זו בלבד. בלי זה — מ-`platter.ini`.
+- `<turns>` — מספר סיבובים, חיובי. אפשר שבר: `0.25` = רבע סיבוב. עד 100.
+- `<rpm>` — מהירות, 0.1 עד 120.
+- `cw` / `ccw` — **כשמסתכלים על הצלחת מלמעלה.**
+- סיבוב תמיד רץ כשהמנוע מחזיק; אחרי הסיבוב הצלחת **נשארת נעולה** עד `release`.
+- `enable` / `disable` — שמות ישנים ל-`hold` / `release`, עדיין עובדים.
+- `--port COM7` — פורט לקריאה זו בלבד. בלי זה — מ-`platter.ini`.
 
 ### קודי יציאה
 
@@ -265,7 +296,7 @@ platter.exe run 3
 
 ### תזמון
 
-- הפעלה של `platter.exe` לוקחת 1–3 שניות לפני שהפקודה נשלחת.
+- הפעלה של `platter.exe` לוקחת כשנייה לפני שהפקודה נשלחת (נמדד: 0.85 שניות).
 - `run` יוצא רק כשהתוכנית נגמרה. זמן ההמתנה המקסימלי = הזמן המשוער + `run_margin`.
 - פתיחת הפורט **לא מאתחלת את הבקר** — הצלחת נשארת מוחזקת בין הרצות
   (נבדק: `UP` ממשיך לעלות בין קריאות).
@@ -360,19 +391,46 @@ PSET 1 Streak A|HOLD|ROT 90 20|WAIT 1500|ROT 90 20|WAIT 1500|ROT -180 10|RELEASE
 
 ---
 
-## בניית קובצי הפעלה (exe)
+## בניית חבילה ללקוח
 
-מתיקיית הפרויקט:
+מתיקיית הפרויקט (צריך את `.venv` מההתקנה הראשונה):
 
 ```bash
-.venv\Scripts\pyinstaller --onefile --name platter host\platter.py
-```
-```bash
-.venv\Scripts\pyinstaller --onefile --windowed --name platter_gui --icon host\assets\app.ico --add-data "host\assets;assets" host\platter_gui.py
+build.bat
 ```
 
-הקבצים נוצרים ב-`dist\`. להעתיק את `host\platter.ini` לאותה תיקייה
-(או לתת לתוכנה ליצור אותו בהפעלה הראשונה, ואז לעדכן את הפורט).
+החבילה נוצרת ב-`dist\PetriPlatter`:
+
+| קובץ | תפקיד |
+|---|---|
+| `platter.exe` | שורת הפקודה לרובוט |
+| `platter_gui.exe` | תוכנת הניהול |
+| `platter.ini` | הגדרות — נקרא על ידי שניהם |
+| `README.md` | המסמך הזה |
+
+---
+
+## התקנה אצל הלקוח
+
+במחשב של הלקוח **לא צריך Python**, ולא צריך דרייבר ל-USB (Windows 10/11 מזהה את ה-XIAO לבד).
+
+1. להעתיק את התיקייה `PetriPlatter` כולה, למשל ל-`C:\PetriPlatter`.
+   - בתיקייה שיש בה הרשאת כתיבה (לא `C:\Program Files`) — התוכנה כותבת לידה את `platter.ini` ואת היומנים.
+2. לחבר את הבקר ב-USB. לחבר 24V.
+3. להפעיל את `platter_gui.exe`, לבחור את הפורט ו-**Connect**.
+   הפורט נשמר ב-`platter.ini` — מעכשיו גם `platter.exe` משתמש בו.
+4. **לבדוק כיוון:** בעמוד Manual control, סיבוב `0.25` (חיובי). הצלחת צריכה להסתובב
+   **עם כיוון השעון כשמסתכלים עליה מלמעלה**. אם לא — לתקן `INVERT_DIR` בקושחה ולצרוב מחדש
+   (לעשות את זה אצלנו, לפני המסירה).
+5. להגדיר את התוכניות שהלקוח צריך, ולשמור.
+6. **לסגור את ה-GUI** — הרובוט לא יכול לפתוח את הפורט כל עוד ה-GUI מחובר.
+7. להגדיר ברובוט את הקריאות, עם הנתיב המלא. למשל:
+
+```bash
+C:\PetriPlatter\platter.exe run 1
+```
+
+   ולבדוק את קוד היציאה (`0` = הצליח).
 
 ---
 
