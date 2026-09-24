@@ -36,20 +36,20 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 
 ```
 SBS_PetriPlater/
-├── README.md                      המסמך הזה
-├── Motor_Driver_Design_Notes.md   מסמך התכנון: מנוע, דרייבר, החלטות וסיכונים
-├── PetriPlatter.bat               הפעלת ה-GUI בלחיצה כפולה
-├── requirements.txt               ספריות Python
+├── README.md                      this document
+├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
+├── PetriPlatter.bat               double-click to start the GUI
+├── requirements.txt               Python packages
 ├── firmware/
 │   └── PetriPlatter/
-│       └── PetriPlatter.ino       קושחת הבקר
+│       └── PetriPlatter.ino       controller firmware
 └── host/
-    ├── platter.ini                הגדרות: פורט, מהירות תקשורת, זמני המתנה
-    ├── platter.py                 שורת הפקודה לרובוט
-    ├── platter_gui.py             תוכנת הניהול
-    ├── platter_link.py            קוד משותף: תקשורת, תוכניות, הגדרות
-    ├── theme.py                   ערכת העיצוב של Gamidor (מתוך הסקיל gamidor-ui-design)
-    └── assets/                    לוגו ואייקון
+    ├── platter.ini                settings: port, baud rate, timeouts
+    ├── platter.py                 robot command line
+    ├── platter_gui.py             control GUI
+    ├── platter_link.py            shared code: serial link, programs, settings
+    ├── theme.py                   Gamidor design tokens (gamidor-ui-design skill)
+    └── assets/                    logo and icon
 ```
 
 ---
@@ -155,16 +155,24 @@ python -m venv .venv
 
 ```ini
 [connection]
-port = COM6          ; פורט ה-USB של הבקר (מנהל ההתקנים → יציאות COM ו-LPT)
-baudrate = 115200    ; חייב להתאים ל-Serial.begin() בקושחה
+port = COM6          ; USB port of the controller (Device Manager -> Ports)
+baudrate = 115200    ; must match Serial.begin() in the firmware
 
 [timeouts]
-command = 3          ; שניות להמתנה לתשובה על פקודה קצרה
-run_margin = 10      ; שניות נוספות מעבר לזמן המשוער של תוכנית
+command = 3          ; seconds to wait for a quick command's reply
+run_margin = 10      ; extra seconds on top of a program's estimated time
 
 [gui]
-poll_ms = 1000       ; קצב רענון המצב החי ב-GUI, מילישניות
+poll_ms = 1000       ; GUI live-status refresh, milliseconds
 ```
+
+| מפתח | משמעות |
+|---|---|
+| `port` | פורט ה-USB של הבקר (מנהל ההתקנים ← יציאות COM ו-LPT) |
+| `baudrate` | מהירות התקשורת. חייבת להתאים ל-`Serial.begin()` בקושחה |
+| `command` | שניות להמתנה לתשובה על פקודה קצרה |
+| `run_margin` | שניות נוספות מעבר לזמן המשוער של תוכנית, לפני שנחשב פסק זמן |
+| `poll_ms` | קצב רענון המצב החי ב-GUI, במילישניות |
 
 - **חיבור מוצלח ב-GUI לפורט אחר כותב את הפורט החדש לקובץ** — הרובוט ישתמש בו אוטומטית.
 - `--port` בשורת הפקודה עוקף את הקובץ לקריאה אחת בלבד.
@@ -291,10 +299,10 @@ USB, ‏115200, כל שורה מסתיימת ב-`\n`. לכל פקודה — שו
 ```
 <name>|<step>|<step>|...
 
-ROT <deg> <rpm>    סיבוב (שלילי = כיוון הפוך)
-WAIT <ms>          המתנה
-HOLD               החזקה
-RELEASE            שחרור
+ROT <deg> <rpm>    rotate (negative = other direction)
+WAIT <ms>          wait
+HOLD               hold the dish (motor energised)
+RELEASE            release the dish (motor free)
 ```
 
 דוגמה:
