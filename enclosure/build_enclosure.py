@@ -79,13 +79,18 @@ PLUG_ZONE = 14.0          # room the 90 deg adapter takes in front of the XIAO (
 # Connector panel: the +X end wall. Seen from outside: y to the right, z up.
 # (kind, y, z, size, label). size: hole diameter, or (width, height) for the USB cut-out
 PANEL = [
-    ("usb", -14.0, 17.0, (12.5, 7.5), "USB"),    # (MEASURE) panel USB-C body cut-out
+    ("usb", -14.0, 17.0, (10.0, 4.5), "USB"),    # opening for the plug's metal shell
     ("dc", 16.0, 17.0, 8.0, "24V DC"),           # (MEASURE) DC-022B jack thread = 8 mm
     ("hole", -10.0, 38.0, 8.0, "STATUS"),        # 8 mm LED holder
     ("hole", 10.0, 38.0, 7.0, "RESET"),          # 7 mm push button
 ]
-USB_PANEL_SCREWS = 28.0   # (MEASURE) centre distance of the 2 screws of the panel USB-C
-USB_PANEL_SCREW_D = 3.4   # (MEASURE) clearance hole for those screws
+# The panel USB-C cable's flange sits against the INSIDE of the wall; 2 x M3 screws from outside.
+USB_PANEL_SCREWS = 16.5   # centre distance of the 2 screws (measured)
+USB_PANEL_SCREW_D = 3.4   # M3 clearance
+USB_FLANGE = (22.0, 10.5, 25.0)   # flange width, body height, depth inside (body 12.5 x 10.5)
+# The plug's plastic overmould stops at the outside of the wall; a shallow pocket lets it in,
+# so the wall in front of the connector is only 0.8 mm and the plug seats (almost) fully.
+USB_POCKET = (12.4, 7.0, WALL - 0.8)   # width, height, depth from outside
 PANEL_DEPTH = {"usb": 22.0, "dc": 14.0, "hole": 22.0}   # how far each part reaches inside
 
 # Ventilation slots in the long walls, next to the driver
@@ -206,6 +211,9 @@ def make_base():
         if kind == "usb":
             w, h = size
             base = base.cut(box(x_in, x_out, y - w / 2, y + w / 2, z - h / 2, z + h / 2))
+            pw, ph, pd = USB_POCKET
+            base = base.cut(box(FOOT_X / 2 - pd, x_out, y - pw / 2, y + pw / 2,
+                                z - ph / 2, z + ph / 2))
             for sy in (-1, 1):
                 base = base.cut(Part.makeCylinder(USB_PANEL_SCREW_D / 2, WALL + 2,
                                                   V(x_out, y + sy * USB_PANEL_SCREWS / 2, z),
@@ -351,8 +359,8 @@ def reference_models():
     for kind, y, z, size, label in PANEL:
         d = PANEL_DEPTH[kind]
         if kind == "usb":
-            w, h = size
-            panel.append(box(IN_X - d, IN_X, y - w / 2 - 3, y + w / 2 + 3, z - h / 2 - 2, z + h / 2 + 2))
+            fw, fh, fd = USB_FLANGE
+            panel.append(box(IN_X - fd, IN_X, y - fw / 2, y + fw / 2, z - fh / 2, z + fh / 2))
         else:
             panel.append(Part.makeCylinder(size / 2 + 2.5, d, V(IN_X, y, z), V(-1, 0, 0)))
     jack = fuse_all(panel)
