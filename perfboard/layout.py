@@ -54,8 +54,12 @@ R2 = {"1": "I9", "2": "I10"}        # 10k, standing: 3.3V bus -> EN
 C1 = {"+": "A10", "-": "A11"}       # 100uF / 35V, lying flat, body pointing out past the edge
 MOTOR = {"1": "B12", "2": "B13", "3": "B14", "4": "B15"}   # JST-XH 4: black, green, red, blue
 PWR = {"+24V": "C10", "0V": "C11"}  # wires from the DC jack
+R3 = {"1": "B4", "2": "B8"}         # 330R, lying along column B: D10 strip -> LED wire
+PANEL = {"LED+": "A8", "LED-": "A2", "BTN": "B2"}   # wires to the panel LED and RESET button
+# (the RESET button's other wire goes straight to the EN pad under the XIAO, not to the board)
 
-COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR}
+COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
+              "R3": R3, "PANEL": PANEL}
 
 # -----------------------------------------------------------------------------
 # Wires (insulated). The strips do most of the work; these join the strips that must meet.
@@ -89,8 +93,11 @@ EXPECTED = {
     "USART": ["XIAO.D5", "R1.2", "TMC.USART"],
     "A2": ["TMC.A2", "MOTOR.1"], "A1": ["TMC.A1", "MOTOR.2"],
     "B1": ["TMC.B1", "MOTOR.3"], "B2": ["TMC.B2", "MOTOR.4"],
+    "LED": ["XIAO.D10", "R3.1"],
+    "LED anode": ["R3.2", "PANEL.LED+"],
 }
-NOT_CONNECTED = ["TMC.PDN", "TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V", "XIAO.D10",
+EXPECTED["GND"] += ["PANEL.LED-", "PANEL.BTN"]
+NOT_CONNECTED = ["TMC.PDN", "TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V",
                  "XIAO.D9", "XIAO.D8", "XIAO.D7"]
 
 
@@ -221,6 +228,16 @@ def draw(mirror: bool, path: Path, title: str):
                                alpha=0.9, zorder=6))
         for h, t in (("B12", "1 blk"), ("B13", "2 grn"), ("B14", "3 red"), ("B15", "4 blu")):
             pin_dot(h, t, "#f4f1e6")
+        (x1, y1), (x2, y2) = xy(R3["1"], False), xy(R3["2"], False)
+        ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
+        ax.add_patch(FancyBboxPatch((x1 - 0.3, 5.1), 0.6, 1.8, boxstyle="round,pad=0.02",
+                                    fc="#e8b4b4", ec="#555", zorder=7))
+        ax.text(x1 - 0.75, 6.0, "R3 330Ω", rotation=90, fontsize=5.3, va="center", zorder=7)
+        for h, t, col in (("A8", "LED+", "#2a9d3a"), ("A2", "LED−", "#222"), ("B2", "RESET", "#555")):
+            x, y = xy(h, False)
+            ax.plot([x, -mx - 1.6], [y, y + (0.35 if t == "RESET" else 0)], color=col, lw=1.8, zorder=6)
+            ax.text(-mx - 1.7, y + (0.35 if t == "RESET" else 0), t, fontsize=5, ha="right",
+                    va="center", color=col, fontweight="bold", zorder=9)
         for h, t, col in (("C10", "+24V", "#d62d20"), ("C11", "0V", "#222")):
             x, y = xy(h, False)
             ax.add_patch(Circle((x, y), 0.3, fc=col, zorder=8))

@@ -35,6 +35,10 @@
  *   PSET <slot> <program>    -> OK
  *   PDEL <slot>              -> OK
  *
+ * STATUS LED on the panel (D10): steady = ready, slow blink = rotating / program running,
+ * fast blink = the driver does not answer (usually no 24V), off = no USB power.
+ * RESET button on the panel: wired to the XIAO's EN pad (hardware reset), not a GPIO.
+ *
  *   <program> = <name>|<step>|<step>|...
  *   <step>    = ROT <deg> <rpm>      negative deg = other direction (holds the dish on its own)
  *             | WAIT <ms>
@@ -50,12 +54,13 @@
 
 // ---------------- Pins: XIAO ESP32-C3 (see Motor_Driver_Design_Notes.md, section 5) ----------------
 // Strapping pins D0 (GPIO2), D8 (GPIO8), D9 (GPIO9 = BOOT button) are left unused.
-// D6/D7 (GPIO21/20) are left free too: the ROM prints its boot log on GPIO21.
+// D6/D7 (GPIO21/20) are left free too: the ROM prints its boot log on GPIO21. D10 = LED.
 constexpr uint8_t PIN_EN      = 3;    // D1  LOW = driver active, 10k pull-up keeps it OFF on boot
 constexpr uint8_t PIN_STEP    = 4;    // D2
 constexpr uint8_t PIN_DIR     = 5;    // D3
 constexpr uint8_t PIN_UART_TX = 6;    // D4  via 1k to USART
 constexpr uint8_t PIN_UART_RX = 7;    // D5  direct to USART
+constexpr uint8_t PIN_LED     = 10;   // D10 status LED on the panel, 330R in series
 
 // ---------------- Motor / driver ----------------
 constexpr float    R_SENSE        = 0.11f;   // R110 on the board — verify
@@ -103,6 +108,9 @@ uint8_t  driverVersion   = 0;
 uint16_t driverCurrentMa = 0;
 bool     driverConfigured = false;
 uint16_t uartRecoveries   = 0;   // UART to the driver froze and a restart brought it back
+
+constexpr uint32_t DRIVER_CHECK_MS = 2000;   // idle re-check, keeps the LED honest
+uint32_t lastDriverCheck = 0;
 
 // program runner
 Step     prog[MAX_STEPS];
@@ -562,6 +570,8 @@ void pollSerial() {
 void setup() {
   // Keep the motor OFF before anything else (the pull-up already does this in hardware)
   pinMode(PIN_EN, OUTPUT);
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, LOW);
   digitalWrite(PIN_EN, HIGH);
 
   Serial.setRxBufferSize(CMD_LINE_MAX);   // a PSET line can be longer than the default 256 bytes
@@ -578,10 +588,27 @@ void setup() {
   Serial.printf("# PetriPlatter ready, driver %s (0x%02X)\n", ok ? "OK" : "NOT FOUND (24V off?)", driverVersion);
 }
 
+void updateLed() {
+  uint32_t t = millis();
+  bool on;
+  if (driverVersion != 0x21) on = (t / 100) % 2;   // fast blink: driver silent (24V off?)
+  else if (phase != IDLE)    on = (t / 500) % 2;   // slow blink: rotating / program running
+  else                       on = true;            // steady: ready
+  digitalWrite(PIN_LED, on ? HIGH : LOW);
+}
+
 void loop() {
   pollSerial();
 
   // run() returns true while steps remain; call it as often as possible
   bool moving = stepper.run();
   serviceProgram(moving);
+
+  // while idle, check the driver now and then: the LED shows a lost 24V without a host asking,
+  // and a driver that restarted gets its settings back before the next command
+  if (phase == IDLE && millis() - lastDriverCheck >= DRIVER_CHECK_MS) {
+    lastDriverCheck = millis();
+    ensureDriver();
+  }
+  updateLed();
 }
