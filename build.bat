@@ -6,6 +6,8 @@ rem   platter.ini      settings (port, baud rate, timeouts) - read by both
 rem   README.md, WIRING.md
 rem Copy the whole dist\PetriPlatter folder to the customer PC. Python is not needed there.
 cd /d "%~dp0"
+rem PyInstaller's work folder can end up read-only, and then --clean fails: remove it first.
+if exist build (attrib -r build\* /s /d >nul & rmdir /s /q build)
 set PYI=.venv\Scripts\pyinstaller --noconfirm --clean --onefile --distpath dist\PetriPlatter --workpath build --specpath build
 
 %PYI% --name platter --icon ..\host\assets\app.ico host\platter.py || goto :fail
