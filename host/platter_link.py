@@ -1,13 +1,18 @@
 """
-Serial link to the PetriPlatter ESP32 + the program model. Shared by platter.py (robot CLI)
-and platter_gui.py (program editor). Protocol is documented at the top of PetriPlatter.ino.
+Serial link to the PetriPlatter ESP32, the program model and the settings file (platter.ini).
+Shared by platter.py (robot CLI) and platter_gui.py (program editor). The protocol is
+documented at the top of PetriPlatter.ino.
 """
 
 from __future__ import annotations
 
+import configparser
+import re
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import serial
 import serial.tools.list_ports
@@ -37,6 +42,91 @@ class PlatterError(Exception):
     def __init__(self, reason: str):
         super().__init__(reason)
         self.reason = reason
+
+
+# ------------------------------------------------------------------------------------
+# Settings file: platter.ini, next to the scripts (or next to the .exe files once built).
+# Both the robot CLI and the GUI read it, so the port is set in one place only.
+
+CONFIG_NAME = "platter.ini"
+
+DEFAULT_INI = """; PetriPlatter settings - read by platter.exe (robot) and platter_gui.exe.
+; Lines starting with ; are comments. Save the file and restart the program to apply.
+
+[connection]
+; USB serial port of the controller (Device Manager -> Ports (COM & LPT)).
+; The GUI writes the port here after a successful Connect, so the robot uses the same one.
+port = COM6
+; Must match Serial.begin() in the firmware.
+baudrate = 115200
+
+[timeouts]
+; Seconds to wait for the reply to a quick command (STATUS, EN, PSET, ...).
+command = 3
+; Extra seconds on top of a program's estimated duration before RUN counts as timed out.
+run_margin = 10
+
+[gui]
+; Live status refresh while idle, in milliseconds.
+poll_ms = 1000
+"""
+
+
+class ConfigError(Exception):
+    """platter.ini holds a value that cannot be used."""
+
+
+@dataclass
+class Config:
+    port: str = "COM6"
+    baudrate: int = BAUD
+    command_timeout: float = SHORT_TIMEOUT_S
+    run_margin: float = RUN_MARGIN_S
+    poll_ms: int = 1000
+    path: Path | None = None
+
+
+def config_path() -> Path:
+    base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+    return base / CONFIG_NAME
+
+
+def load_config(path: Path | None = None) -> Config:
+    """Read platter.ini; create it with the defaults when it does not exist yet."""
+    path = path or config_path()
+    if not path.exists():
+        try:
+            path.write_text(DEFAULT_INI, encoding="utf-8")
+        except OSError:
+            pass                    # read-only folder: run on the defaults
+    cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
+    cp.read(path, encoding="utf-8")
+    cfg = Config(path=path)
+    fields = (("port", "connection", "port", str), ("baudrate", "connection", "baudrate", int),
+              ("command_timeout", "timeouts", "command", float),
+              ("run_margin", "timeouts", "run_margin", float), ("poll_ms", "gui", "poll_ms", int))
+    for attr, section, key, cast in fields:
+        raw = cp.get(section, key, fallback=None)
+        if raw is None or not raw.strip():
+            continue
+        try:
+            value = cast(raw.strip())
+        except ValueError:
+            raise ConfigError(f"{path.name}: [{section}] {key} = {raw.strip()!r} is not valid") from None
+        if cast is not str and value <= 0:
+            raise ConfigError(f"{path.name}: [{section}] {key} must be greater than 0")
+        setattr(cfg, attr, value)
+    return cfg
+
+
+def save_port(port: str, path: Path | None = None) -> None:
+    """Rewrite only the 'port =' line, keeping every comment in the file."""
+    path = path or config_path()
+    text = path.read_text(encoding="utf-8") if path.exists() else DEFAULT_INI
+    new, n = re.subn(r"(?m)^(\s*port\s*=\s*).*$", lambda m: m.group(1) + port, text, count=1)
+    if not n:
+        new = text.rstrip() + f"\n\n[connection]\nport = {port}\n"
+    path.write_text(new, encoding="utf-8")
 
 
 # ------------------------------------------------------------------------------------
@@ -125,11 +215,17 @@ def list_ports() -> list[str]:
 
 
 class PlatterLink:
-    def __init__(self, port: str):
+    command_timeout = SHORT_TIMEOUT_S
+    run_margin = RUN_MARGIN_S
+
+    def __init__(self, port: str, baudrate: int = BAUD, command_timeout: float = SHORT_TIMEOUT_S,
+                 run_margin: float = RUN_MARGIN_S):
+        self.command_timeout = command_timeout
+        self.run_margin = run_margin
         # DTR/RTS must be low BEFORE open(), otherwise the ESP32 resets and drops the dish.
         self.ser = serial.Serial()
         self.ser.port = port
-        self.ser.baudrate = BAUD
+        self.ser.baudrate = baudrate
         self.ser.dtr = False
         self.ser.rts = False
         self.ser.timeout = 0.2
@@ -146,8 +242,13 @@ class PlatterLink:
             self.ser.write((line + "\n").encode("utf-8"))
             self.ser.flush()
 
-    def command(self, cmd: str, timeout_s: float = SHORT_TIMEOUT_S) -> str:
+    @classmethod
+    def from_config(cls, cfg: Config, port: str | None = None) -> "PlatterLink":
+        return cls(port or cfg.port, cfg.baudrate, cfg.command_timeout, cfg.run_margin)
+
+    def command(self, cmd: str, timeout_s: float | None = None) -> str:
         """Send one command; return the text after 'OK'. Raises PlatterError / TimeoutError."""
+        timeout_s = timeout_s or self.command_timeout
         with self._cmd_lock:
             self.ser.reset_input_buffer()
             self._write(cmd)
@@ -205,12 +306,12 @@ class PlatterLink:
         """Blocks until the program ends."""
         limits = limits or self.info()
         duration = self.get_program(slot).seconds(limits["ACCEL"])
-        self.command(f"RUN {slot}", duration + RUN_MARGIN_S)
+        self.command(f"RUN {slot}", duration + self.run_margin)
 
     def rotate(self, deg: float, rpm: float, limits: dict | None = None) -> None:
         limits = limits or self.info()
         duration = Step("ROT", deg=deg, rpm=rpm).seconds(limits["ACCEL"])
-        self.command(f"ROT {deg:g} {rpm:g}", duration + RUN_MARGIN_S)
+        self.command(f"ROT {deg:g} {rpm:g}", duration + self.run_margin)
 
     def enable(self) -> None:
         self.command("EN")

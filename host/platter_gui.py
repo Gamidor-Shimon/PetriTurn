@@ -29,7 +29,8 @@ import serial
 from PySide6 import QtGui, QtWidgets
 from PySide6.QtCore import QObject, QPoint, QSettings, Qt, QThread, QTimer, Signal, Slot
 
-from platter_link import DEFAULT_LIMITS, PlatterError, PlatterLink, Program, Step, list_ports
+from platter_link import (DEFAULT_LIMITS, Config, ConfigError, PlatterError, PlatterLink, Program,
+                          Step, list_ports, load_config, save_port)
 from theme import DARK, LIGHT, QSS, Pill, card, hsep, muted
 
 APP_NAME = "PetriPlatter Control Center"
@@ -37,7 +38,6 @@ APP_VERSION = "1.0"
 COMPANY = "Gamidor Diagnostics"
 AUTHOR = "Shimon Yeshayahu"
 
-POLL_MS = 1000                  # live status refresh while idle
 PAGE_MIN_WIDTH = 1030
 
 # Same tokens as theme.py; rules theme.py does not cover (double spin boxes, the STOP button,
@@ -163,6 +163,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(APP_NAME)
         self.setWindowIcon(QtGui.QIcon(asset("app.ico")))
         self.settings = QSettings("GamidorDiagnostics", "PetriPlatter")
+        try:
+            self.cfg, self.cfg_error = load_config(), None     # platter.ini, shared with the robot
+        except ConfigError as e:
+            self.cfg, self.cfg_error = Config(), str(e)
         self.dark = self.settings.value("dark", False, type=bool)
 
         self.link: PlatterLink | None = None
@@ -207,8 +211,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self.poll_status)
-        self.poll_timer.start(POLL_MS)
+        self.poll_timer.start(self.cfg.poll_ms)
         self.log("gui", f"{APP_NAME} {APP_VERSION} started. Log file: {self.log_path}")
+        if self.cfg_error:
+            self.log("err", f"{self.cfg_error} — running on the default settings")
+        else:
+            self.log("gui", f"settings: {self.cfg.path} (port {self.cfg.port}, {self.cfg.baudrate} baud)")
 
     # ================================================================ layout
 
@@ -558,7 +566,7 @@ class MainWindow(QtWidgets.QMainWindow):
         grid.setColumnStretch(1, 1)
         self.auto_refresh = QtWidgets.QCheckBox("auto refresh")
         self.auto_refresh.setChecked(True)
-        self.auto_refresh.setToolTip(f"Read STATUS every {POLL_MS / 1000:g} s while idle")
+        self.auto_refresh.setToolTip(f"Read STATUS every {self.cfg.poll_ms / 1000:g} s while idle (poll_ms in platter.ini)")
         cl.addWidget(self.auto_refresh)
         row.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
 
@@ -613,7 +621,8 @@ class MainWindow(QtWidgets.QMainWindow):
             "exit 0 = OK   1 = timeout, device error or stopped   2 = bad command or empty slot")
         usage.setStyleSheet("font-family: Consolas, monospace;")
         cl.addWidget(usage)
-        cl.addWidget(muted("Set the port once with  setx PLATTER_PORT COM6  or pass --port. "
+        cl.addWidget(muted("The port, baud rate and timeouts are in platter.ini next to the programs; "
+                           "Connect here writes the port there, so the robot uses the same one. "
                            "Close this window first — only one program can hold the port.",
                            wrap=True))
         lay.addWidget(f)
@@ -803,7 +812,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # ================================================================ connection + status
 
     def refresh_ports(self):
-        current = self.port_box.currentText() or self.settings.value("port", "")
+        current = self.port_box.currentText() or self.cfg.port
         self.port_box.clear()
         ports = list_ports()
         self.port_box.addItems(ports)
@@ -819,14 +828,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log("warn", "choose a serial port first")
             return
         try:
-            self.link = PlatterLink(port)
+            self.link = PlatterLink.from_config(self.cfg, port)
         except serial.SerialException as e:
             self.log("err", f"cannot open {port}: {e}")
             if "Access is denied" in str(e) or "PermissionError" in str(e):
                 self.log("warn", "the port is held by another program — close the Arduino serial "
                                  "monitor or a running platter.exe")
             return
-        self.settings.setValue("port", port)
         self.log("gui", f"opened {port}")
         link = self.link
 
@@ -840,6 +848,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refresh_slot_list()
             self.log("ok", f"controller ready — {len(self.slot_names)} program(s) stored, "
                            f"driver {status.get('DRV', '?')}")
+            if port != self.cfg.port and not self.cfg_error:
+                try:
+                    save_port(port, self.cfg.path)
+                    self.cfg.port = port
+                    self.log("gui", f"port {port} saved to {self.cfg.path.name} — the robot uses it too")
+                except OSError as e:
+                    self.log("warn", f"could not save the port to platter.ini: {e}")
             if not self._driver_ok():
                 self.log("warn", "the driver does not answer: is the 24V on? Motion is disabled "
                                  "until it does.")
