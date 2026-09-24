@@ -38,6 +38,7 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 ```
 SBS_PetriPlater/
 ├── README.md                      this document
+├── WIRING.md                      pin-by-pin wiring: controller, driver, motor, power
 ├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
 ├── PetriPlatter.bat               double-click to start the GUI (development PC)
 ├── build.bat                      builds the customer package into dist\PetriPlatter
@@ -57,6 +58,8 @@ SBS_PetriPlater/
 ---
 
 ## חומרה
+
+הפירוט המלא, רגל אחר רגל, עם שרטוטים ובדיקות: **[WIRING.md](WIRING.md)**.
 
 ### רכיבים
 
@@ -93,8 +96,8 @@ SBS_PetriPlater/
 |---|---|---|
 | ספק 24V (+) | `VM` (ימין, פין 1) | + רגל **+** (הארוכה) של קבל 100µF, צמוד לדרייבר |
 | ספק 24V (−) | `GND` (ימין, פין 2) | + רגל **−** (הפס) של הקבל |
-| מנוע ירוק | `A2` (ימין, פין 3) | |
-| מנוע שחור | `A1` (ימין, פין 4) | |
+| מנוע שחור | `A2` (ימין, פין 3) | |
+| מנוע ירוק | `A1` (ימין, פין 4) | |
 | מנוע אדום | `B1` (ימין, פין 5) | |
 | מנוע כחול | `B2` (ימין, פין 6) | |
 
