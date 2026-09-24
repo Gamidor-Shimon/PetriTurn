@@ -81,6 +81,18 @@ CONSOLE_COLOURS = {"err": "#ff7b6b", "warn": "#ffc061", "ok": "#5fd68a",
 ACTIONS = (("Rotate", "ROT"), ("Wait", "WAIT"), ("Hold dish", "HOLD"), ("Release dish", "RELEASE"))
 ACTION_LABEL = {kind: label for label, kind in ACTIONS}
 
+# Demo loop of the manual-control page: (turns, rpm, pause after [s]); + = clockwise.
+# Every rotation is undone by the next one, so the dish ends each lap where it started.
+DEMO_STEPS = (
+    (0.25, 10, 0.5), (-0.25, 10, 0.5),
+    (1, 30, 0.5), (-1, 30, 0.5),
+    (0.5, 60, 0.3), (-0.5, 60, 0.3),
+    (0.125, 5, 0.3), (-0.125, 5, 0.3),
+    (2, 90, 0.5), (-2, 90, 0.5),
+    (3, 120, 0.8), (-3, 120, 0.8),
+    (0.75, 20, 0.3), (-0.75, 45, 1.0),
+)
+
 ERROR_HINTS = {
     "DRIVER": "The motor driver is not responding, so the motor was not moved.",
     "EMPTY_SLOT": "This slot has no program.",
@@ -180,6 +192,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dirty = False
         self._loading = False
         self._gate_cache = None
+        self.demo_running = False
+        self.demo_index = 0
+        self.demo_lap = 0
 
         # widgets gated by state (see _update_gating)
         self._conn_idle_widgets: list[QtWidgets.QWidget] = []   # connected and idle
@@ -571,6 +586,41 @@ class MainWindow(QtWidgets.QMainWindow):
         cl.addWidget(self.auto_refresh)
         row.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
 
+        row2 = QtWidgets.QHBoxLayout()
+        row2.setSpacing(12)
+        lay.addLayout(row2)
+
+        # demo
+        f, cl = card("demo")
+        f.setMinimumWidth(340)
+        lap_s = sum(Step("ROT", deg=t * 360, rpm=r).seconds(DEFAULT_LIMITS["ACCEL"]) + p
+                    for t, r, p in DEMO_STEPS)
+        btns = QtWidgets.QHBoxLayout()
+        cl.addLayout(btns)
+        self.demo_start_btn = QtWidgets.QPushButton("Start demo")
+        self.demo_start_btn.setObjectName("Primary")
+        self.demo_start_btn.setToolTip("Turn the dish back and forth at many speeds, in a loop, "
+                                       "until Stop demo")
+        self.demo_start_btn.clicked.connect(self.start_demo)
+        btns.addWidget(self.demo_start_btn)
+        self._motion_widgets.append(self.demo_start_btn)
+        self.demo_stop_btn = QtWidgets.QPushButton("Stop demo")
+        self.demo_stop_btn.setObjectName("Danger")
+        self.demo_stop_btn.setToolTip("Stop the demo now; the motor decelerates and keeps holding")
+        self.demo_stop_btn.clicked.connect(lambda: self.stop_demo("stopped"))
+        self.demo_stop_btn.setEnabled(False)
+        btns.addWidget(self.demo_stop_btn)
+        btns.addStretch(1)
+        self.demo_label = QtWidgets.QLabel("--")
+        self.demo_label.setObjectName("H2")
+        cl.addWidget(self.demo_label)
+        rpms = [r for _, r, _ in DEMO_STEPS]
+        cl.addWidget(muted(f"{len(DEMO_STEPS)} rotations, clockwise and counter-clockwise, from "
+                           f"{min(rpms):g} to {max(rpms):g} RPM, about {lap_s:.0f} s per lap, "
+                           "repeated until Stop demo. Each lap ends where it started. "
+                           "Make sure nothing touches the dish.", wrap=True))
+        row2.addWidget(f, 2, Qt.AlignmentFlag.AlignTop)
+
         # legend
         f, cl = card("what the numbers mean")
         for key, text, col in (
@@ -590,7 +640,7 @@ class MainWindow(QtWidgets.QMainWindow):
             rr.addWidget(k)
             rr.addWidget(muted(text, wrap=True), 1)
         self.legend_keys = [w for w in f.findChildren(QtWidgets.QLabel) if w.property("legend")]
-        lay.addWidget(f)
+        row2.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
         lay.addStretch(1)
         return page
 
@@ -744,6 +794,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if job not in self.pending:        # finished after a disconnect: stale
             return
         self.pending.remove(job)
+        if error is not None and self.demo_running:
+            self.stop_demo("ended by an error")
         if error is None:
             if job.on_done:
                 job.on_done(result)
@@ -772,9 +824,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_gating(self, force: bool = False):
         conn = self.link is not None
-        idle = not self.pending
+        idle = not self.pending and not self.demo_running
         drv = self._driver_ok()
-        running = any(j.motion for j in self.pending)
+        running = any(j.motion for j in self.pending) or self.demo_running
         busy_text = ", ".join(j.label for j in self.pending if not j.quiet)
         self.busy_label.setText(f"busy: {busy_text}…" if busy_text else "")
         self.connect_btn.setText("Disconnect" if conn else "Connect")
@@ -793,6 +845,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     w.setEnabled(target)
         self.connect_btn.setEnabled(idle or not conn)
         self.stop_btn.setEnabled(conn)
+        self.demo_stop_btn.setEnabled(conn and self.demo_running)
 
     def _update_pills(self):
         c = self.palette_colors()
@@ -806,7 +859,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.pill_driver.set_state("DRIVER OK" if drv else "NO DRIVER", c["ok"] if drv else c["err"])
             held = self.status.get("EN") == "1"
             self.pill_motor.set_state("HELD" if held else "FREE", c["info"] if held else c["warn"])
-        running = conn and (any(j.motion for j in self.pending) or self.status.get("BUSY") == "1")
+        running = conn and (any(j.motion for j in self.pending) or self.demo_running
+                            or self.status.get("BUSY") == "1")
         self.pill_activity.set_state("RUNNING" if running else ("IDLE" if conn else "--"),
                                      c["accent"] if running else (c["ok"] if conn else c["muted"]))
 
@@ -863,6 +917,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.submit(Job("connecting", work, done, tx="INFO · STATUS · PLIST"))
 
     def disconnect_port(self):
+        if self.demo_running:
+            self.stop_demo("stopped (port closed)")
         if self.link:
             try:
                 if any(j.motion for j in self.pending):
@@ -942,6 +998,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def stop(self):
         if not self.link:
             return
+        if self.demo_running:
+            self.stop_demo("stopped by STOP")
+            return
         try:
             if any(j.motion for j in self.pending):
                 self.link.send_stop()     # the running command ends with ERR STOPPED
@@ -951,6 +1010,50 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.submit(Job("stop", lambda: link.command("STOP"), tx="STOP"))
         except serial.SerialException as e:
             self.log("err", f"STOP failed: {e}")
+
+    # ================================================================ demo
+
+    def start_demo(self):
+        if self.demo_running or not self.link:
+            return
+        self.demo_running, self.demo_index, self.demo_lap = True, 0, 1
+        self.log("gui", "demo started - Stop demo or STOP ends it")
+        self._update_gating(force=True)
+        self._demo_next()
+
+    def _demo_next(self):
+        if not self.demo_running or not self.link:
+            return
+        turns, rpm, pause = DEMO_STEPS[self.demo_index]
+        link, limits, deg = self.link, dict(self.limits), round(turns * 360, 3)
+        plural = "" if abs(turns) == 1 else "s"
+        text = f"{abs(turns):g} turn{plural} {'cw' if turns > 0 else 'ccw'} at {rpm:g} rpm"
+        self.demo_label.setText(f"lap {self.demo_lap} · {self.demo_index + 1}/{len(DEMO_STEPS)} · {text}")
+        self.submit(Job(f"demo: {text}", lambda: link.rotate(deg, rpm, limits),
+                        lambda _: self._demo_step_done(pause), tx=f"ROT {fmt(deg)} {fmt(rpm)}",
+                        motion=True))
+
+    def _demo_step_done(self, pause: float):
+        self.demo_index += 1
+        if self.demo_index == len(DEMO_STEPS):
+            self.demo_index = 0
+            self.demo_lap += 1
+            self.log("ok", f"demo lap {self.demo_lap - 1} done")
+        QTimer.singleShot(int(pause * 1000), self._demo_next)
+
+    def stop_demo(self, reason: str):
+        if not self.demo_running:
+            return
+        self.demo_running = False
+        if self.link and any(j.motion for j in self.pending):
+            try:
+                self.link.send_stop()     # the running rotation ends with ERR STOPPED
+                self.log("tx", "STOP")
+            except serial.SerialException:
+                pass
+        self.demo_label.setText(f"{reason} · lap {self.demo_lap}, step {self.demo_index + 1}")
+        self.log("gui", f"demo {reason}")
+        self._update_gating(force=True)
 
     # ================================================================ slot list
 
