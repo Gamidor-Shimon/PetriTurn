@@ -66,9 +66,9 @@ PB_HOLE_INSET = 2.5
 PB_PARTS_H = 22.0         # tallest part on the board (TMC2209 + heatsink on female headers)
 
 # USB-C window (XIAO on female headers at the -X edge of the board)
-USB_Y = 15.0              # (MEASURE after soldering) centre of the XIAO USB-C along Y
+USB_Y = 14.0              # (MEASURE after soldering) centre of the XIAO USB-C along Y (row 17 of the board)
 USB_Z = 21.3              # (MEASURE after soldering) centre height of the USB-C above the bench
-USB_W, USB_H = 11.0, 6.0
+USB_W, USB_H = 13.5, 8.0  # lets the plug's plastic overmould in, so the plug seats fully
 
 # DC jack 5.5 x 2.1, panel mount, on the +X end
 DC_Y, DC_Z = 0.0, 26.0
