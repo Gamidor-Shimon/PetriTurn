@@ -4,8 +4,10 @@ SBS PetriPlater enclosure - parametric FreeCAD script.
 Builds the printed parts, checks them against simple models of the motor, perfboard and
 connectors, and exports STL (print-ready orientation) and STEP (assembled position).
 
-Run (from the project root):
-    "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read())"
+Run it as a FreeCAD macro (shows the model on screen and writes the files):
+    FreeCAD -> File -> Open -> this file -> Macro -> Execute macro (Ctrl+F6)
+Or without the FreeCAD window, from the project root:
+    "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read(), {'__file__': r'enclosure/build_enclosure.py'})"
 
 All sizes in mm. Coordinates: X along the SBS length (127.76), Y along the width (85.48),
 Z up; origin at the centre of the footprint, on the bench. -X end = USB, +X end = 24V.
@@ -420,6 +422,40 @@ def main():
 
     with open(os.path.join(OUT, "build_report.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(report) + "\n")
+
+    if FreeCAD.GuiUp:
+        show_in_freecad(printed, lid_text, refs, report)
+
+
+# colour (r, g, b 0..1) and transparency (0..100) of every body in the FreeCAD window
+GUI_LOOK = {
+    "base": ((0.79, 0.82, 0.85), 0), "lid": ((0.87, 0.89, 0.91), 0),
+    "lid_text": ((0.91, 0.34, 0.25), 0), "hub": ((0.91, 0.34, 0.25), 0),
+    "plate": ((0.91, 0.34, 0.25), 0), "motor": ((0.23, 0.25, 0.28), 0),
+    "shaft": ((0.6, 0.65, 0.7), 0), "perfboard": ((0.18, 0.56, 0.31), 0),
+    "board parts": ((0.1, 0.15, 0.2), 40), "usb-c": ((0.6, 0.65, 0.7), 0),
+    "dc jack": ((0.1, 0.15, 0.2), 0), "dish": ((0.72, 0.86, 0.96), 70),
+}
+
+
+def show_in_freecad(printed, lid_text, refs, report):
+    """When run as a macro in the FreeCAD window: one document with every part, coloured."""
+    import FreeCADGui
+    doc = FreeCAD.newDocument("SBS_PetriPlater")
+    bodies = list(printed.items()) + [("lid_text", lid_text)] + list(refs.items())
+    for name, shape in bodies:
+        obj = doc.addObject("Part::Feature", name.replace(" ", "_").replace("-", "_"))
+        obj.Label = name + ("" if name in printed or name == "lid_text" else "  (reference)")
+        obj.Shape = shape
+        colour, transparency = GUI_LOOK.get(name, ((0.7, 0.7, 0.7), 0))
+        obj.ViewObject.ShapeColor = colour
+        obj.ViewObject.Transparency = transparency
+    doc.recompute()
+    view = FreeCADGui.activeDocument().activeView()
+    view.viewIsometric()
+    FreeCADGui.SendMsgToActiveView("ViewFit")
+    FreeCAD.Console.PrintMessage("SBS PetriPlater enclosure:\n  " + "\n  ".join(report)
+                                 + f"\n  files written to {OUT}\n")
 
 
 main()
