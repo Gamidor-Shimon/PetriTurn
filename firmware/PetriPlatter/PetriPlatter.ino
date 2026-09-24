@@ -65,7 +65,9 @@ constexpr float    HOLD_MULT      = 0.5f;    // hold current = 50% of run curren
 constexpr uint16_t MICROSTEPS     = 16;
 constexpr long     FULL_STEPS     = 200;
 constexpr long     STEPS_PER_REV  = FULL_STEPS * MICROSTEPS;   // 3200
-constexpr bool     INVERT_DIR     = false;   // flip if the dish turns the wrong way
+// Positive degrees = clockwise looking down at the dish. true matches the wiring in WIRING.md
+// (A2 black, A1 green, B1 red, B2 blue) - checked on the hardware 24.09.2026.
+constexpr bool     INVERT_DIR     = true;
 
 // ---------------- Limits ----------------
 constexpr float    MIN_RPM      = 0.1f;
