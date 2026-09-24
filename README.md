@@ -6,7 +6,7 @@
 ```
 Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 → Petri dish
                  ↑
-   platter_gui (תוכנת ניהול) → כותבת תוכניות לזיכרון של הבקר
+   platter_gui (program editor) → writes programs into the controller's flash
 ```
 
 הפרויקט בנוי משלושה חלקים:
