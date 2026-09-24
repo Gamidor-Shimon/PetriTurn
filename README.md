@@ -42,6 +42,7 @@ SBS_PetriPlater/
 ├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
 ├── PetriPlatter.bat               double-click to start the GUI (development PC)
 ├── build.bat                      builds the customer package into dist\PetriPlatter
+├── enclosure/                     3D-printed box: FreeCAD script, STL, STEP, previews
 ├── requirements.txt               Python packages
 ├── firmware/
 │   └── PetriPlatter/
@@ -60,6 +61,7 @@ SBS_PetriPlater/
 ## חומרה
 
 הפירוט המלא, רגל אחר רגל, עם שרטוטים ובדיקות: **[WIRING.md](WIRING.md)**.
+הקופסה המודפסת (SBS), חלקים, הדפסה והרכבה: **[enclosure/README.md](enclosure/README.md)**.
 
 ### רכיבים
 

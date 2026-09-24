@@ -1,0 +1,12 @@
+base height 53.4, lid top 57.4, dish bottom 81.4 mm above the bench
+footprint 127.76 x 85.48 mm
+clip grip overlap with the dish: 3.19 mm3 (expected > 0)
+base: valid=True solids=1 volume=83.1 cm3
+lid: valid=True solids=1 volume=42.6 cm3
+hub: valid=True solids=1 volume=10.1 cm3
+plate: valid=True solids=1 volume=16.8 cm3
+base.stl print size 127.8 x 85.5 x 53.4 mm
+lid.stl print size 127.8 x 85.5 x 6.5 mm
+lid_text.stl print size 112.0 x 65.9 x 0.6 mm
+hub.stl print size 40.0 x 40.0 x 19.0 mm
+plate.stl print size 85.1 x 88.8 x 8.0 mm

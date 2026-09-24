@@ -10,3 +10,6 @@ host/logs/
 build/
 dist/
 *.spec
+
+# Enclosure: intermediate meshes for the preview renderer
+enclosure/preview/parts/
