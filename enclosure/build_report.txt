@@ -1,7 +1,7 @@
 base height 53.4, lid top 57.4, dish bottom 81.4 mm above the bench
 footprint 127.76 x 85.48 mm
 clip grip overlap with the dish: 3.19 mm3 (expected > 0)
-base: valid=True solids=1 volume=83.0 cm3
+base: valid=True solids=1 volume=83.4 cm3
 lid: valid=True solids=1 volume=42.6 cm3
 hub: valid=True solids=1 volume=10.1 cm3
 plate: valid=True solids=1 volume=16.8 cm3

@@ -1,14 +1,17 @@
 """
-Perfboard layout for the SBS PetriPlater controller board: placement, bottom-side wiring,
-a netlist check against WIRING.md, and top / bottom drawings.
+Layout of the SBS PetriPlater controller on a breadboard-style PCB, with a netlist check
+against WIRING.md and top / bottom drawings.
 
 Run (from the project root):
     .venv\\Scripts\\python perfboard\\layout.py
 
-Board: 30 x 60 mm (a 30 x 70 board cut to 60), 2.54 mm grid, 10 columns x 22 rows.
-    columns A..J  = x, A at the USB (-X) end of the box, J towards the motor
-    rows    1..22 = y, row 1 at the -Y end, row 22 at the +Y end
-The top view below is the board as it sits in the box, seen from above.
+The board
+    A breadboard-style PCB, 89 x 52 mm as bought, 30 rows. In every row A-E are joined and
+    F-J are joined (like a breadboard); E and F are not. The power rails on both long sides
+    are cut off and the board is cut to 22 rows -> about 32 x 60 mm.
+    columns A..J   A-E | channel | F-J   (E to F = 3 x 2.54 mm, like a breadboard)
+    rows    1..22  row 1 at the USB end (the XIAO's USB-C looks out over row 1)
+The XIAO and the TMC2209 straddle the channel, exactly like on the test breadboard.
 """
 
 from collections import defaultdict
@@ -21,82 +24,69 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Circle, FancyBboxPatch, Rectangle  # noqa: E402
 
 HERE = Path(__file__).parent
-COLS = "ABCDEFGHIJ"
-ROWS = 22
 PITCH = 2.54
-BOARD_W, BOARD_H = 30.0, 60.0
+GAP = 3                      # E -> F distance in pitches (check: 7.6 mm between hole centres)
+COLS = "ABCDEFGHIJ"
+COL_X = {c: (i if i < 5 else i + GAP - 1) for i, c in enumerate(COLS)}   # A0..E4, F7..J11
+ROWS = 22
+BOARD_W, BOARD_H = 32.0, 60.0    # after cutting (measure)
 
 
-def hole(name: str) -> tuple[int, int]:
-    """'C14' -> (2, 14)"""
-    return COLS.index(name[0]), int(name[1:])
+def hole(h: str) -> tuple[str, int]:
+    return h[0], int(h[1:])
 
 
 # -----------------------------------------------------------------------------
-# Components: pin name -> hole
+# Components: pin -> hole
 # -----------------------------------------------------------------------------
-XIAO = {  # on 2 x 7 female headers, USB-C at the board edge next to the USB wall (column A)
-    "D0": "A14", "D1": "B14", "D2": "C14", "D3": "D14", "D4": "E14", "D5": "F14", "D6": "G14",
-    "5V": "A20", "GND": "B20", "3V3": "C20", "D10": "D20", "D9": "E20", "D8": "F20", "D7": "G20",
+XIAO = {  # 2 x 7 female headers across the channel; USB-C towards row 1 (the USB wall)
+    "5V": "D1", "GND": "D2", "3V3": "D3", "D10": "D4", "D9": "D5", "D8": "D6", "D7": "D7",
+    "D0": "H1", "D1": "H2", "D2": "H3", "D3": "H4", "D4": "H5", "D5": "H6", "D6": "H7",
 }
-TMC = {  # TMC2209 V985 on 2 x 8 female headers, potentiometer / EN end towards the XIAO
-    "EN": "C10", "MS1": "C9", "MS2": "C8", "PDN": "C7", "USART": "C6", "CLK": "C5",
-    "STEP": "C4", "DIR": "C3",
-    "VM": "H10", "GND_P": "H9", "A2": "H8", "A1": "H7", "B1": "H6", "B2": "H5",
-    "VDD": "H4", "GND_L": "H3",
+TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO
+    "EN": "G10", "MS1": "G11", "MS2": "G12", "PDN": "G13", "USART": "G14", "CLK": "G15",
+    "STEP": "G16", "DIR": "G17",
+    "VM": "D10", "GND_P": "D11", "A2": "D12", "A1": "D13", "B1": "D14", "B2": "D15",
+    "VDD": "D16", "GND_L": "D17",
 }
-R1 = {"1": "A12", "2": "E12"}          # 1k   D4 -> USART
-R2 = {"1": "C11", "2": "G11"}          # 10k  EN -> 3.3V
-C1 = {"+": "J10", "-": "J9"}           # 100uF / 35V, 6.3 mm, 2.5 mm leads
-MOTOR = {"1": "J7", "2": "J6", "3": "J5", "4": "J4"}   # JST-XH 4: black, green, red, blue
-PWR = {"+24V": "J12", "0V": "I8"}      # wires from the DC jack, soldered in (I9 is under C1)
+R1 = {"1": "J5", "2": "J14"}        # 1k, lying along column J: D4 strip -> USART strip
+R2 = {"1": "I9", "2": "I10"}        # 10k, standing: 3.3V bus -> EN
+C1 = {"+": "A10", "-": "A11"}       # 100uF / 35V, lying flat, body pointing out past the edge
+MOTOR = {"1": "B12", "2": "B13", "3": "B14", "4": "B15"}   # JST-XH 4: black, green, red, blue
+PWR = {"+24V": "C10", "0V": "C11"}  # wires from the DC jack
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR}
 
 # -----------------------------------------------------------------------------
-# Bottom side: solder bridges between neighbouring holes, and insulated wires
+# Wires (insulated). The strips do most of the work; these join the strips that must meet.
+# (from, to, colour, what, side, drawing path through the gaps [(x, row)])
 # -----------------------------------------------------------------------------
-BRIDGES = [  # (from, to) along a straight line of holes - every hole in between joins
-    ("B14", "B10"),   # D1 -> ...
-    ("B10", "C10"),   # ... EN
-    ("C11", "C10"),   # R2 pin 1 -> EN
-    ("C9", "C8"),     # MS1 + MS2
-    ("E14", "E12"),   # D4 -> R1 pin 2
-    ("H10", "J10"),   # VM -> C1 +
-    ("H9", "J9"),     # GND -> C1 -
-    ("J12", "J11"),   # +24V -> ...
-    ("J11", "J10"),   # ... VM / C1 +
-    ("H3", "I3"),     # logic GND pad
-    ("I8", "I9"),     # 0V in -> power GND
-]
-WIRES = [  # (from, to, colour, what[, drawing path through the gaps between holes (col, row)])
-    ("F14", "C6", "#7b3fb8", "D5 -> USART"),
-    ("A12", "C6", "#7b3fb8", "R1 -> USART"),
-    ("C14", "C4", "#1f6fd1", "D2 -> STEP", [(2.5, 13.5), (2.5, 4.5)]),
-    ("D14", "C3", "#1f6fd1", "D3 -> DIR", [(3.5, 13.5), (3.5, 3.5)]),
-    ("G11", "C20", "#e08a00", "R2 -> 3.3V"),
-    ("C20", "H4", "#e08a00", "3.3V -> VDD"),
-    ("B20", "I3", "#222222", "GND (XIAO) -> GND (logic)"),
-    ("C8", "I3", "#222222", "MS1/MS2 -> GND"),
-    ("I3", "I9", "#222222", "logic GND <-> power GND"),
-    ("H8", "J7", "#222222", "A2 -> motor 1 (black)"),
-    ("H7", "J6", "#2a9d3a", "A1 -> motor 2 (green)"),
-    ("H6", "J5", "#d62d20", "B1 -> motor 3 (red)"),
-    ("H5", "J4", "#1f6fd1", "B2 -> motor 4 (blue)"),
+WIRES = [
+    ("E9", "F9", "#e08a00", "3.3V bus: join both halves of row 9", "top", []),
+    ("C3", "C9", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", []),
+    ("B9", "B16", "#e08a00", "3.3V bus -> VDD", "bottom", [(0.5, 9.5), (0.5, 15.5)]),
+    ("J2", "H10", "#7a7a7a", "D1 -> EN", "bottom", [(10.5, 2.5), (10.5, 9.5)]),
+    ("F3", "F16", "#1f6fd1", "D2 -> STEP", "bottom", [(6.5, 3.5), (6.5, 15.5)]),
+    ("I4", "I17", "#1f6fd1", "D3 -> DIR", "bottom", [(9.5, 4.5), (9.5, 16.5)]),
+    ("I6", "H14", "#7b3fb8", "D5 -> USART", "bottom", [(8.5, 6.5), (8.5, 13.5)]),
+    ("E11", "F11", "#222222", "MS1 -> GND (across the channel)", "top", []),
+    ("I12", "I11", "#222222", "MS2 -> MS1 / GND", "bottom", []),
+    ("B11", "B17", "#222222", "power GND <-> logic GND", "bottom", [(1.5, 11.5), (1.5, 16.5)]),
+    ("C2", "C17", "#222222", "XIAO GND -> GND", "bottom", [(2.5, 2.5), (2.5, 16.5)]),
 ]
 
 # -----------------------------------------------------------------------------
-# Expected nets (from WIRING.md) - every group must be connected, and nothing else
+# Expected nets (WIRING.md)
 # -----------------------------------------------------------------------------
 EXPECTED = {
     "VM +24V": ["TMC.VM", "C1.+", "PWR.+24V"],
     "GND": ["TMC.GND_P", "TMC.GND_L", "C1.-", "PWR.0V", "XIAO.GND", "TMC.MS1", "TMC.MS2"],
-    "3V3": ["XIAO.3V3", "TMC.VDD", "R2.2"],
-    "EN": ["XIAO.D1", "TMC.EN", "R2.1"],
+    "3V3": ["XIAO.3V3", "TMC.VDD", "R2.1"],
+    "EN": ["XIAO.D1", "TMC.EN", "R2.2"],
     "STEP": ["XIAO.D2", "TMC.STEP"],
     "DIR": ["XIAO.D3", "TMC.DIR"],
-    "TX": ["XIAO.D4", "R1.2"],
-    "USART": ["XIAO.D5", "R1.1", "TMC.USART"],
+    "TX": ["XIAO.D4", "R1.1"],
+    "USART": ["XIAO.D5", "R1.2", "TMC.USART"],
     "A2": ["TMC.A2", "MOTOR.1"], "A1": ["TMC.A1", "MOTOR.2"],
     "B1": ["TMC.B1", "MOTOR.3"], "B2": ["TMC.B2", "MOTOR.4"],
 }
@@ -104,15 +94,7 @@ NOT_CONNECTED = ["TMC.PDN", "TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V", "XIAO.D1
                  "XIAO.D9", "XIAO.D8", "XIAO.D7"]
 
 
-def line_holes(a: str, b: str) -> list[str]:
-    (c0, r0), (c1, r1) = hole(a), hole(b)
-    assert c0 == c1 or r0 == r1, f"bridge {a}-{b} is not straight"
-    n = max(abs(c1 - c0), abs(r1 - r0))
-    return [f"{COLS[c0 + (c1 - c0) * i // n]}{r0 + (r1 - r0) * i // n}" for i in range(n + 1)]
-
-
 def check() -> list[str]:
-    """Union-find over holes; compare the resulting nets with EXPECTED."""
     parent: dict[str, str] = {}
 
     def find(x):
@@ -125,137 +107,155 @@ def check() -> list[str]:
     def union(a, b):
         parent[find(a)] = find(b)
 
-    pins = {f"{comp}.{pin}": h for comp, pinmap in COMPONENTS.items() for pin, h in pinmap.items()}
+    pins = {f"{comp}.{pin}": h for comp, pm in COMPONENTS.items() for pin, h in pm.items()}
     used = defaultdict(list)
     for name, h in pins.items():
         used[h].append(name)
-    problems = [f"hole {h} used by {', '.join(n)}" for h, n in used.items() if len(n) > 1]
-    for a, b in BRIDGES:
-        holes = line_holes(a, b)
-        for x, y in zip(holes, holes[1:]):
-            union(x, y)
+    for a, b, *_ in WIRES:
+        used[a].append(f"wire {a}-{b}")
+        used[b].append(f"wire {a}-{b}")
+    problems = [f"hole {h} used twice: {', '.join(n)}" for h, n in used.items() if len(n) > 1]
+    # the copper strips
+    for r in range(1, ROWS + 1):
+        for half in ("ABCDE", "FGHIJ"):
+            for c in half[1:]:
+                union(f"{half[0]}{r}", f"{c}{r}")
     for a, b, *_ in WIRES:
         union(a, b)
-    for h in pins.values():
-        find(h)
 
     net_of = {name: find(h) for name, h in pins.items()}
     for net, members in EXPECTED.items():
-        roots = {net_of[m] for m in members}
-        if len(roots) != 1:
-            problems.append(f"net {net} is split: " + ", ".join(
-                f"{m}@{pins[m]}" for m in members))
-    expected_root = {find(pins[m[0]]): net for net, m in EXPECTED.items()}
+        if len({net_of[m] for m in members}) != 1:
+            problems.append(f"net {net} is split: " + ", ".join(f"{m}@{pins[m]}" for m in members))
+    root_net = {find(pins[m[0]]): net for net, m in EXPECTED.items()}
     for name, root in net_of.items():
         owner = [net for net, m in EXPECTED.items() if name in m]
-        if owner and expected_root.get(root) not in owner:
+        if owner and root_net.get(root) not in owner:
             problems.append(f"{name} ended up in the wrong net")
-        if not owner and name in NOT_CONNECTED and root in expected_root:
-            problems.append(f"{name} must stay unconnected, but is on net {expected_root[root]}")
-    # different expected nets must not have merged
-    roots = defaultdict(list)
+        if name in NOT_CONNECTED:
+            others = [n for n, r in net_of.items() if r == root and n != name]
+            if others:
+                problems.append(f"{name} must stay unconnected, but shares a strip with {others}")
+    merged = defaultdict(list)
     for net, m in EXPECTED.items():
-        roots[find(pins[m[0]])].append(net)
-    problems += [f"SHORT between nets {', '.join(n)}" for n in roots.values() if len(n) > 1]
+        merged[find(pins[m[0]])].append(net)
+    problems += [f"SHORT between nets {', '.join(n)}" for n in merged.values() if len(n) > 1]
     return problems
 
 
 # -----------------------------------------------------------------------------
 # Drawing
 # -----------------------------------------------------------------------------
+X_MAX = COL_X["J"]
+
+
 def xy(h: str, mirror: bool) -> tuple[float, float]:
     c, r = hole(h)
-    return (len(COLS) - 1 - c if mirror else c), r
+    x = COL_X[c]
+    return (X_MAX - x if mirror else x), r
 
 
 def draw(mirror: bool, path: Path, title: str):
-    fig, ax = plt.subplots(figsize=(6.2, 11), dpi=130)
-    mx = (BOARD_W / PITCH - (len(COLS) - 1)) / 2
+    fig, ax = plt.subplots(figsize=(6.6, 11), dpi=130)
+    mx = (BOARD_W / PITCH - X_MAX) / 2
     my = (BOARD_H / PITCH - (ROWS - 1)) / 2
-    ax.add_patch(FancyBboxPatch((-mx, 1 - my), len(COLS) - 1 + 2 * mx, ROWS - 1 + 2 * my,
-                                boxstyle="round,pad=0,rounding_size=0.4", fc="#d9b36c",
-                                ec="#8a6a2f", lw=1.2, zorder=0))
-    for c in range(len(COLS)):
-        for r in range(1, ROWS + 1):
-            ax.add_patch(Circle((len(COLS) - 1 - c if mirror else c, r), 0.18,
-                                fc="#6b5326", ec="none", zorder=1))
-    for c, name in enumerate(COLS):
-        ax.text(len(COLS) - 1 - c if mirror else c, ROWS + 1.0, name, ha="center", va="center",
-                fontsize=8, color="#3b2f1a", fontweight="bold")
-    for r in range(1, ROWS + 1):
-        ax.text(len(COLS) - 1 + 1.05 if not mirror else -1.05, r, str(r), ha="center",
-                va="center", fontsize=6.5, color="#3b2f1a")
+    ax.add_patch(FancyBboxPatch((-mx, 1 - my), X_MAX + 2 * mx, ROWS - 1 + 2 * my,
+                                boxstyle="round,pad=0,rounding_size=0.3", fc="#1d1f22",
+                                ec="#555", lw=1.2, zorder=0))
+    ax.add_patch(Rectangle(((X_MAX - COL_X["F"] if mirror else COL_X["E"]) + 0.6, 1 - my),
+                           GAP - 1.2, ROWS - 1 + 2 * my, fc="#111214", ec="none", zorder=0.5))
+    for r in range(1, ROWS + 1):          # copper strips
+        for a, b in (("A", "E"), ("F", "J")):
+            xa, xb = sorted((xy(f"{a}{r}", mirror)[0], xy(f"{b}{r}", mirror)[0]))
+            ax.plot([xa, xb], [r, r], color="#b8893a", lw=5, alpha=0.55, solid_capstyle="round",
+                    zorder=1)
+        for c in COLS:
+            x, _ = xy(f"{c}{r}", mirror)
+            ax.add_patch(Circle((x, r), 0.2, fc="#d9a441", ec="none", zorder=2))
+        ax.text(-mx - 0.55 if not mirror else X_MAX + mx + 0.55, r, str(r), ha="center",
+                va="center", fontsize=6.5, color="#333")
+    for c in COLS:
+        x, _ = xy(f"{c}1", mirror)
+        ax.text(x, 1 - my - 0.7, c, ha="center", va="center", fontsize=8, fontweight="bold")
+        ax.text(x, ROWS + my + 0.7, c, ha="center", va="center", fontsize=8, fontweight="bold")
 
-    def label_pins(comp, pinmap, colour, side_offset):
-        for pin, h in pinmap.items():
-            x, y = xy(h, mirror)
-            ax.add_patch(Circle((x, y), 0.3, fc=colour, ec="white", lw=0.6, zorder=6))
-            ax.text(x + side_offset(pin), y, pin.replace("GND_P", "GND").replace("GND_L", "GND"),
-                    ha="center", va="center", fontsize=5.3, zorder=7, color="#111111")
+    def pin_dot(h, label, fc="#e6c86e"):
+        x, y = xy(h, mirror)
+        ax.add_patch(Circle((x, y), 0.34, fc=fc, ec="white", lw=0.6, zorder=8))
+        if label:
+            ax.text(x, y, label, ha="center", va="center", fontsize=4.6, zorder=9)
 
-    if not mirror:   # components are on the top side
-        # XIAO outline (21 x 17.5 mm), USB-C at the A end
-        x0, _ = xy("A14", False)
-        ax.add_patch(Rectangle((x0 - 1.13, 13.6), 8.27, 6.8, fc="#2b2f36", ec="#111", lw=1,
-                               alpha=0.88, zorder=3))
-        ax.add_patch(Rectangle((x0 - 1.6, 16.1), 1.2, 1.8, fc="#b8bec6", ec="#555", zorder=4))
-        ax.text(x0 + 3, 17, "XIAO ESP32-C3\nUSB-C ←", ha="center", va="center", color="white",
-                fontsize=7.5, zorder=5)
-        # TMC2209 outline (15.3 x 20.3 mm), pot at the EN end
-        ax.add_patch(Rectangle((xy("C3", False)[0] - 0.5, 2.5), 6.0, 8.0, fc="#1b1b1b", ec="#111",
-                               lw=1, alpha=0.85, zorder=3))
-        ax.add_patch(Circle((xy("E10", False)[0], 9.6), 0.45, fc="#c7c7c7", zorder=4))
-        ax.text(xy("E6", False)[0] + 0.5, 6.5, "TMC2209\n(heatsink up)", ha="center",
-                va="center", color="white", fontsize=7, zorder=5)
-        # resistors, capacitor, motor connector, power wires
-        for comp, pins, text, fc in ((R1, ("1", "2"), "R1 1kΩ", "#d8c7a0"),
-                                     (R2, ("1", "2"), "R2 10kΩ", "#9fc0e8")):
-            (xa, ya), (xb, yb) = xy(comp[pins[0]], False), xy(comp[pins[1]], False)
-            ax.plot([xa, xb], [ya, yb], color="#777", lw=1.2, zorder=3)
-            ax.add_patch(FancyBboxPatch((min(xa, xb) + 0.8, ya - 0.28), abs(xb - xa) - 1.6, 0.56,
-                                        boxstyle="round,pad=0.02", fc=fc, ec="#555", zorder=4))
-            ax.text((xa + xb) / 2, ya, text, ha="center", va="center", fontsize=5.8, zorder=5)
-        cx, cy = xy("J10", False)[0], 9.5
-        ax.add_patch(Circle((cx, cy), 1.24, fc="#27303b", ec="#111", zorder=4))
-        ax.add_patch(Rectangle((cx + 0.55, cy - 1.0), 0.45, 2.0, fc="#c9d0d8", zorder=5))
-        ax.text(cx - 0.35, cy, "C1\n100µ", ha="center", va="center", color="white", fontsize=5,
-                zorder=6)
-        ax.text(cx - 1.55, 10, "+", ha="center", va="center", fontsize=9, color="#d62d20",
-                fontweight="bold", zorder=6)
-        mxj = xy("J4", False)[0]
-        ax.add_patch(Rectangle((mxj - 1.13, 3.57), 2.26, 3.86, fc="#f4f1e6", ec="#777", zorder=4))
-        ax.text(mxj + 1.75, 5.5, "MOTOR\nJST-XH", ha="center", va="center", fontsize=5.5,
-                rotation=90, zorder=5)
-        label_pins("MOTOR", {"1 blk": "J7", "2 grn": "J6", "3 red": "J5", "4 blu": "J4"},
-                   "#f4f1e6", lambda p: 0)
-        for pin, h, col in (("+24V", "J12", "#d62d20"), ("0V", "I8", "#222222")):
+    if not mirror:
+        # XIAO: 21 x 17.5 mm across the channel, USB-C over row 1
+        cx = (COL_X["D"] + COL_X["H"]) / 2
+        ax.add_patch(Rectangle((cx - 3.44, 0.87), 6.88, 8.26, fc="#2b2f36", ec="#000",
+                               lw=1, alpha=0.9, zorder=5))
+        ax.add_patch(Rectangle((cx - 0.9, 0.2), 1.8, 0.9, fc="#c3c8ce", ec="#555", zorder=6))
+        ax.text(cx, 4.2, "XIAO\nESP32-C3\n↓ USB-C", ha="center", va="center", color="white",
+                fontsize=7, zorder=7)
+        # TMC2209: 15.3 x 20.3 mm across the channel, pot towards the XIAO
+        tx = (COL_X["D"] + COL_X["G"]) / 2
+        ax.add_patch(Rectangle((tx - 3.01, 9.5), 6.02, 8.0, fc="#1b1b1b", ec="#000", lw=1,
+                               alpha=0.9, zorder=5))
+        ax.add_patch(Circle((tx - 1.0, 10.3), 0.45, fc="#c7c7c7", zorder=6))
+        ax.text(tx, 14.2, "TMC2209\nheatsink up", ha="center", va="center", color="white",
+                fontsize=7, zorder=7)
+        # R1 along column J, R2 standing, C1 lying flat past the edge, JST, 24V wires
+        (x1, y1), (x2, y2) = xy(R1["1"], False), xy(R1["2"], False)
+        ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
+        ax.add_patch(FancyBboxPatch((x1 - 0.3, 8.2), 0.6, 2.6, boxstyle="round,pad=0.02",
+                                    fc="#d8c7a0", ec="#555", zorder=7))
+        ax.text(x1 + 0.75, 9.5, "R1 1kΩ", rotation=90, fontsize=5.5, va="center", zorder=7)
+        rx, _ = xy(R2["1"], False)
+        ax.add_patch(FancyBboxPatch((rx - 0.35, 9.1), 0.7, 0.8, boxstyle="round,pad=0.02",
+                                    fc="#9fc0e8", ec="#555", zorder=7))
+        ax.text(rx + 0.2, 8.35, "R2 10kΩ\n(standing)", fontsize=4.8, ha="center", zorder=7)
+        ax.add_patch(Rectangle((-mx - 3.0, 9.9), 3.0, 1.2, fc="#27303b", ec="#111", zorder=6))
+        ax.plot([-mx, 0], [10, 10], color="#999", lw=1, zorder=6)
+        ax.plot([-mx, 0], [11, 11], color="#999", lw=1, zorder=6)
+        ax.text(-mx - 1.5, 10.5, "C1 100µF", color="white", fontsize=4.6, ha="center",
+                va="center", zorder=7)
+        ax.text(-mx - 0.3, 9.35, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
+        bx, _ = xy("B12", False)
+        ax.add_patch(Rectangle((bx - 1.13, 11.57), 2.26, 3.86, fc="#f4f1e6", ec="#777",
+                               alpha=0.9, zorder=6))
+        for h, t in (("B12", "1 blk"), ("B13", "2 grn"), ("B14", "3 red"), ("B15", "4 blu")):
+            pin_dot(h, t, "#f4f1e6")
+        for h, t, col in (("C10", "+24V", "#d62d20"), ("C11", "0V", "#222")):
             x, y = xy(h, False)
-            ax.plot([x, x + 1.6], [y, y + (1.2 if pin == "+24V" else -0.2)], color=col, lw=2.2,
-                    zorder=6)
-            ax.text(x + 1.7, y + (1.5 if pin == "+24V" else -0.6), pin + "\n(DC jack)",
-                    fontsize=5.5, color=col, fontweight="bold", zorder=7)
-        label_pins("XIAO", XIAO, "#e6c86e", lambda p: 0)
-        label_pins("TMC", TMC, "#e6c86e", lambda p: -0.95 if hole(TMC[p])[0] == 2 else 0.95)
-    else:            # bottom side: bridges and wires, mirrored
-        for a, b in BRIDGES:
-            holes = line_holes(a, b)
-            xs, ys = zip(*(xy(h, True) for h in holes))
-            ax.plot(xs, ys, color="#c0c4c8", lw=7, solid_capstyle="round", zorder=4)
-            ax.plot(xs, ys, color="#8d949b", lw=1, zorder=5)
-        for a, b, colour, what, *via in WIRES:
-            pts = [xy(a, True)] + [(len(COLS) - 1 - c, r) for c, r in (via[0] if via else [])]                 + [xy(b, True)]
+            ax.add_patch(Circle((x, y), 0.3, fc=col, zorder=8))
+            ax.text(x + 0.15, y + 0.52, t, fontsize=5, color=col, fontweight="bold", zorder=9)
+        for pin, h in XIAO.items():
+            pin_dot(h, pin)
+        for pin, h in TMC.items():
+            pin_dot(h, pin.replace("GND_P", "GND").replace("GND_L", "GND"))
+        for a, b, colour, what, side, via in WIRES:
+            if side == "top":
+                (xa, ya), (xb, yb) = xy(a, False), xy(b, False)
+                ax.plot([xa, xb], [ya, yb], color="white", lw=4.2, zorder=6.4)
+                ax.plot([xa, xb], [ya, yb], color=colour, lw=2.4, zorder=6.5)
+    else:
+        for a, b, colour, what, side, via in WIRES:
+            if side != "bottom":
+                continue
+            pts = [xy(a, True)] + [(X_MAX - x, r) for x, r in via] + [xy(b, True)]
             xs, ys = zip(*pts)
-            ax.plot(xs, ys, color=colour, lw=2.2, zorder=6, alpha=0.9)
-        for comp, pinmap in COMPONENTS.items():
-            for pin, h in pinmap.items():
+            ax.plot(xs, ys, color="white", lw=4.2, zorder=5.9, solid_capstyle="round")
+            ax.plot(xs, ys, color=colour, lw=2.4, zorder=6, solid_capstyle="round")
+            for h in (a, b):
                 x, y = xy(h, True)
-                ax.add_patch(Circle((x, y), 0.3, fc="#b7bcc2", ec="#555", lw=0.6, zorder=7))
+                ax.add_patch(Circle((x, y), 0.3, fc=colour, ec="white", lw=0.8, zorder=7))
+        for comp, pm in COMPONENTS.items():
+            for pin, h in pm.items():
+                x, y = xy(h, True)
+                ax.add_patch(Circle((x, y), 0.26, fc="#c9ced4", ec="#333", lw=0.6, zorder=8))
                 short = pin.replace("GND_P", "GND").replace("GND_L", "GND")
-                ax.text(x, y - 0.52, f"{comp if comp not in ('XIAO', 'TMC') else ''}{'.' if comp not in ('XIAO', 'TMC') else ''}{short}",
-                        ha="center", va="center", fontsize=4.6, zorder=8, color="#111")
+                lab = short if comp in ("XIAO", "TMC") else f"{comp}.{short}"
+                ax.text(x, y - 0.5, lab, ha="center", va="center", fontsize=4.3, color="white",
+                        zorder=9)
 
-    ax.set_xlim(-2.2, len(COLS) + 1.4)
-    ax.set_ylim(-0.6, ROWS + 2.2)
+    ax.set_xlim(-mx - 3.6, X_MAX + mx + 1.4)
+    ax.set_ylim(1 - my - 1.4, ROWS + my + 1.4)
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(title, fontsize=10)
@@ -266,11 +266,12 @@ def draw(mirror: bool, path: Path, title: str):
 
 def main():
     problems = check()
-    print("netlist check:", "OK - every net matches WIRING.md, no shorts" if not problems else "")
+    print("netlist check:", "OK - every net matches WIRING.md, no shorts, unused pins free"
+          if not problems else "")
     for p in problems:
         print("  PROBLEM:", p)
-    draw(False, HERE / "top.png", "TOP (components) — USB wall on the left, motor on the right")
-    draw(True, HERE / "bottom.png", "BOTTOM (solder side) — mirrored: USB wall on the right")
+    draw(False, HERE / "top.png", "TOP (components) — row 1 / USB-C at the bottom")
+    draw(True, HERE / "bottom.png", "BOTTOM (solder side) — mirrored left-right")
     print("wrote", HERE / "top.png", "and", HERE / "bottom.png")
     return 1 if problems else 0
 

@@ -10,10 +10,11 @@ Or without the FreeCAD window, from the project root:
     "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read(), {'__file__': r'enclosure/build_enclosure.py'})"
 
 All sizes in mm. Coordinates: X along the SBS length (127.76), Y along the width (85.48),
-Z up; origin at the centre of the footprint, on the bench. -X end = USB, +X end = 24V.
+Z up; origin at the centre of the footprint, on the bench. USB in the -Y wall near -X,
+24V in the +X end.
 
 Parts
-    base      tray with walls, perfboard standoffs, lid screw posts, USB window, DC jack hole
+    base      tray with walls, board standoffs, lid screw posts, USB window (-Y), DC jack hole (+X)
     lid       top plate; the motor hangs under it (4 x M3), lid screws into the base (4 x M3)
     lid_text  engraved lettering as a separate body - print it in a second colour (AMS)
     hub       clamps the motor shaft (D-bore + M3 set screw in a heat insert)
@@ -60,15 +61,17 @@ M3_CSK_D = 6.6                           # countersink top diameter (M3 flat hea
 POST_R = 3.6
 POST_INSET = 3.0                          # post centre from the inner wall corner
 
-# Perfboard (30 x 60 mm, cut from a 30 x 70 board) on the -X side of the motor
-PB_X, PB_Y, PB_T = 30.0, 60.0, 1.6
-PB_GAP_WALL = 0.5
+# Controller board: breadboard-style PCB (89 x 52) with the power rails cut off and cut to
+# 22 rows -> 32 x 60 mm, on the -X side of the motor, in the -Y corner (see perfboard/)
+PB_X, PB_Y, PB_T = 32.0, 60.0, 1.6        # (MEASURE after cutting)
+PB_X0, PB_Y0 = -54.0, -38.1               # board corner nearest the USB (-X, -Y)
 PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.2   # M2.5 self-tapping screws
-PB_HOLE_INSET = 2.5
+PB_HOLE_INSET = 2.5                       # drill the 4 mounting holes this far from the edges
 PB_PARTS_H = 22.0         # tallest part on the board (TMC2209 + heatsink on female headers)
 
-# USB-C window (XIAO on female headers at the -X edge of the board)
-USB_Y = 14.0              # (MEASURE after soldering) centre of the XIAO USB-C along Y (row 17 of the board)
+# USB-C window in the -Y (long) wall. The XIAO straddles the board's centre channel with its
+# USB-C towards -Y: centre = 6 hole pitches from column A (board row 1 is at the -Y end).
+USB_X = PB_X0 + (PB_X - 11 * 2.54) / 2 + 6 * 2.54   # (MEASURE after soldering)
 USB_Z = 21.3              # (MEASURE after soldering) centre height of the USB-C above the bench
 USB_W, USB_H = 13.5, 8.0  # lets the plug's plastic overmould in, so the plug seats fully
 
@@ -117,7 +120,6 @@ FLANGE_TOP = SHAFT_TOP + 1.0                    # the shaft ends 1 mm under the 
 PLATE_TOP = FLANGE_TOP + PLATE_T
 IN_X, IN_Y = FOOT_X / 2 - WALL, FOOT_Y / 2 - WALL
 POSTS = [(sx * (IN_X - POST_INSET), sy * (IN_Y - POST_INSET)) for sx in (-1, 1) for sy in (-1, 1)]
-PB_X0 = -IN_X + PB_GAP_WALL                      # perfboard -X edge
 PB_Z0 = FLOOR + PB_STANDOFF_H
 
 
@@ -186,12 +188,12 @@ def make_base():
 
     # perfboard standoffs
     for hx in (PB_X0 + PB_HOLE_INSET, PB_X0 + PB_X - PB_HOLE_INSET):
-        for hy in (-PB_Y / 2 + PB_HOLE_INSET, PB_Y / 2 - PB_HOLE_INSET):
+        for hy in (PB_Y0 + PB_HOLE_INSET, PB_Y0 + PB_Y - PB_HOLE_INSET):
             base = base.fuse(cyl(PB_STANDOFF_D / 2, FLOOR - 0.1, PB_STANDOFF_H + 0.1, hx, hy))
             base = base.cut(cyl(PB_PILOT_D / 2, FLOOR, PB_STANDOFF_H + 1, hx, hy))
 
-    # USB-C window (-X end) with a 45 deg chamfer on the outside for the plug
-    usb = box(-FOOT_X / 2 - 1, -IN_X + 0.01, USB_Y - USB_W / 2, USB_Y + USB_W / 2,
+    # USB-C window in the -Y wall
+    usb = box(USB_X - USB_W / 2, USB_X + USB_W / 2, -FOOT_Y / 2 - 1, -IN_Y + 0.01,
               USB_Z - USB_H / 2, USB_Z + USB_H / 2)
     base = base.cut(usb)
 
@@ -206,6 +208,8 @@ def make_base():
     xs = [x_first + i * (x_last - x_first) / (VENT_N - 1) for i in range(VENT_N)]
     for x in xs:
         for sy in (-1, 1):
+            if sy < 0 and abs(x - USB_X) < USB_W / 2 + VENT_W / 2 + 2:
+                continue                      # keep the -Y wall solid around the USB window
             slot = box(x - VENT_W / 2, x + VENT_W / 2,
                        sy * IN_Y - 1 if sy > 0 else -FOOT_Y / 2 - 1,
                        FOOT_Y / 2 + 1 if sy > 0 else -IN_Y + 1,
@@ -213,8 +217,9 @@ def make_base():
             base = base.cut(slot)
 
     # wall lettering
-    usb_txt = placed(text_solid("USB", WALL_TEXT_H, TEXT_DEPTH), V(0, -1, 0), V(0, 0, 1),
-                     V(-1, 0, 0), V(-FOOT_X / 2, USB_Y, USB_Z + USB_H / 2 + 4.5))
+    # -Y wall, read from outside: right = +X, up = +Z, outward = -Y
+    usb_txt = placed(text_solid("USB", WALL_TEXT_H, TEXT_DEPTH), V(1, 0, 0), V(0, 0, 1),
+                     V(0, -1, 0), V(USB_X, -FOOT_Y / 2, USB_Z + USB_H / 2 + 4.5))
     dc_txt = placed(text_solid("24V DC", WALL_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(0, 0, 1),
                     V(1, 0, 0), V(FOOT_X / 2, DC_Y, DC_Z + DC_HOLE_D / 2 + 4.5))
     base = base.cut(usb_txt).cut(dc_txt)
@@ -324,10 +329,14 @@ def reference_models():
     flat = SHAFT_D / 2 - SHAFT_FLAT
     shaft = cyl(SHAFT_D / 2, BASE_H, SHAFT_L).common(
         box(-SHAFT_D, flat, -SHAFT_D, SHAFT_D, BASE_H - 1, BASE_H + SHAFT_L + 1))
-    board = box(PB_X0, PB_X0 + PB_X, -PB_Y / 2, PB_Y / 2, PB_Z0, PB_Z0 + PB_T)
-    parts = box(PB_X0 + 1, PB_X0 + PB_X - 1, -PB_Y / 2 + 1, PB_Y / 2 - 1,
+    board = box(PB_X0, PB_X0 + PB_X, PB_Y0, PB_Y0 + PB_Y, PB_Z0, PB_Z0 + PB_T)
+    parts = box(PB_X0 + 1, PB_X0 + PB_X - 1, PB_Y0 + 1, PB_Y0 + PB_Y - 1,
                 PB_Z0 + PB_T, PB_Z0 + PB_T + PB_PARTS_H)
-    usb = box(-IN_X + 0.2, -IN_X + 7.5, USB_Y - 4.5, USB_Y + 4.5, USB_Z - 1.7, USB_Z + 1.7)
+    # C1 lies flat along the board's -X edge, outside the board (rows 10..15)
+    row = lambda r: PB_Y0 + (PB_Y - 21 * 2.54) / 2 + (r - 1) * 2.54
+    c1 = box(PB_X0 - 6.5, PB_X0, row(10), row(10) + 12.0, PB_Z0 + PB_T, PB_Z0 + PB_T + 6.5)
+    parts = parts.fuse(c1)
+    usb = box(USB_X - 4.5, USB_X + 4.5, -IN_Y + 0.2, -IN_Y + 3.0, USB_Z - 1.7, USB_Z + 1.7)
     jack = Part.makeCylinder(5.5, DC_DEPTH, V(IN_X, DC_Y, DC_Z), V(-1, 0, 0))
     dish = cyl(DISH_D / 2, PLATE_TOP, 14.0).cut(cyl(DISH_D / 2 - 1.2, PLATE_TOP + 1.2, 14))
     return {"motor": motor, "shaft": shaft, "perfboard": board, "board parts": parts,
