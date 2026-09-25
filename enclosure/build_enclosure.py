@@ -1,5 +1,5 @@
 """
-SBS PetriPlater enclosure - parametric FreeCAD script.
+PetriTurn enclosure - parametric FreeCAD script.
 
 Builds the printed parts, checks them against simple models of the motor, perfboard and
 connectors, and exports STL (print-ready orientation) and STEP (assembled position).
@@ -9,7 +9,7 @@ Run it as a FreeCAD macro (shows the model on screen and writes the files):
 Or without the FreeCAD window, from the project root:
     "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read(), {'__file__': r'enclosure/build_enclosure.py'})"
 
-All sizes in mm. Coordinates: X along the SBS length (127.76), Y along the width (85.48),
+All sizes in mm. Coordinates: X along the box length, Y along the width,
 Z up; origin at the centre of the box, on the bench. The motor / dish sit MOTOR_X towards
 +X; the controller board is on the -X side; all connectors in the +X end.
 
@@ -121,7 +121,7 @@ PAD_D, PAD_DEPTH, PAD_R = 10.0, 0.8, 30.0   # pockets for anti-slip pads
 FONT = "C:/Windows/Fonts/segoeuib.ttf"
 TEXT_DEPTH = 0.6
 LID_TEXT_1 = "GAMIDOR DIAGNOSTICS"      # both lines in the free strip left of the nest
-LID_TEXT_2 = "SBS PETRIPLATER"
+LID_TEXT_2 = "PETRITURN"
 LID_TEXT_H = 5.0
 WALL_TEXT_H = 4.0
 
@@ -499,7 +499,7 @@ GUI_LOOK = {
 def show_in_freecad(printed, lid_text, refs, report):
     """When run as a macro in the FreeCAD window: one document with every part, coloured."""
     import FreeCADGui
-    doc = FreeCAD.newDocument("SBS_PetriPlater")
+    doc = FreeCAD.newDocument("PetriTurn")
     bodies = list(printed.items()) + [("lid_text", lid_text)] + list(refs.items())
     for name, shape in bodies:
         obj = doc.addObject("Part::Feature", name.replace(" ", "_").replace("-", "_"))
@@ -512,7 +512,7 @@ def show_in_freecad(printed, lid_text, refs, report):
     view = FreeCADGui.activeDocument().activeView()
     view.viewIsometric()
     FreeCADGui.SendMsgToActiveView("ViewFit")
-    FreeCAD.Console.PrintMessage("SBS PetriPlater enclosure:\n  " + "\n  ".join(report)
+    FreeCAD.Console.PrintMessage("PetriTurn enclosure:\n  " + "\n  ".join(report)
                                  + f"\n  files written to {OUT}\n")
 
 

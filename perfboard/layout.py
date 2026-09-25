@@ -1,5 +1,5 @@
 """
-Layout of the SBS PetriPlater controller on a breadboard-style PCB, with a netlist check
+Layout of the PetriTurn controller on a breadboard-style PCB, with a netlist check
 against WIRING.md and top / bottom drawings.
 
 Run (from the project root):

@@ -1,7 +1,7 @@
 """
-Serial link to the PetriPlatter ESP32, the program model and the settings file (platter.ini).
-Shared by platter.py (robot CLI) and platter_gui.py (program editor). The protocol is
-documented at the top of PetriPlatter.ino.
+Serial link to the PetriTurn ESP32, the program model and the settings file (petriturn.ini).
+Shared by petriturn.py (robot CLI) and petriturn_gui.py (program editor). The protocol is
+documented at the top of PetriTurn.ino.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ BAD_REQUEST_REASONS = {
 }
 
 
-class PlatterError(Exception):
+class PetriTurnError(Exception):
     """The controller answered ERR <reason>."""
 
     def __init__(self, reason: str):
@@ -45,12 +45,12 @@ class PlatterError(Exception):
 
 
 # ------------------------------------------------------------------------------------
-# Settings file: platter.ini, next to the scripts (or next to the .exe files once built).
+# Settings file: petriturn.ini, next to the scripts (or next to the .exe files once built).
 # Both the robot CLI and the GUI read it, so the port is set in one place only.
 
-CONFIG_NAME = "platter.ini"
+CONFIG_NAME = "petriturn.ini"
 
-DEFAULT_INI = """; PetriPlatter settings - read by platter.exe (robot) and platter_gui.exe.
+DEFAULT_INI = """; PetriTurn settings - read by petriturn.exe (robot) and petriturn_gui.exe.
 ; Lines starting with ; are comments. Save the file and restart the program to apply.
 
 [connection]
@@ -73,7 +73,7 @@ poll_ms = 1000
 
 
 class ConfigError(Exception):
-    """platter.ini holds a value that cannot be used."""
+    """petriturn.ini holds a value that cannot be used."""
 
 
 @dataclass
@@ -92,7 +92,7 @@ def config_path() -> Path:
 
 
 def load_config(path: Path | None = None) -> Config:
-    """Read platter.ini; create it with the defaults when it does not exist yet."""
+    """Read petriturn.ini; create it with the defaults when it does not exist yet."""
     path = path or config_path()
     if not path.exists():
         try:
@@ -214,7 +214,7 @@ def list_ports() -> list[str]:
     return [p.device for p in serial.tools.list_ports.comports()]
 
 
-class PlatterLink:
+class PetriTurnLink:
     command_timeout = SHORT_TIMEOUT_S
     run_margin = RUN_MARGIN_S
 
@@ -243,11 +243,11 @@ class PlatterLink:
             self.ser.flush()
 
     @classmethod
-    def from_config(cls, cfg: Config, port: str | None = None) -> "PlatterLink":
+    def from_config(cls, cfg: Config, port: str | None = None) -> "PetriTurnLink":
         return cls(port or cfg.port, cfg.baudrate, cfg.command_timeout, cfg.run_margin)
 
     def command(self, cmd: str, timeout_s: float | None = None) -> str:
-        """Send one command; return the text after 'OK'. Raises PlatterError / TimeoutError."""
+        """Send one command; return the text after 'OK'. Raises PetriTurnError / TimeoutError."""
         timeout_s = timeout_s or self.command_timeout
         with self._cmd_lock:
             self.ser.reset_input_buffer()
@@ -261,7 +261,7 @@ class PlatterLink:
                 if line == "OK" or line.startswith("OK "):
                     return line[3:]
                 if line.startswith("ERR"):
-                    raise PlatterError(line[4:] or "UNKNOWN")
+                    raise PetriTurnError(line[4:] or "UNKNOWN")
                 # anything else (e.g. '# ...' info lines) is ignored
             raise TimeoutError(f"no reply to {cmd.split()[0]} after {timeout_s:.1f}s")
 

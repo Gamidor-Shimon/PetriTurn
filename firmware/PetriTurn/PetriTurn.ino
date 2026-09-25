@@ -1,8 +1,8 @@
 /*
- * PetriPlatter — ESP32 + TMC2209 firmware for rotating a petri dish during streaking.
+ * PetriTurn — ESP32 + TMC2209 firmware for rotating a petri dish during streaking.
  *
- * Chain:  Robot -> platter.exe (Python) -> USB Serial -> ESP32 -> TMC2209 -> NEMA17 -> dish
- *         GUI (platter_gui) writes programs into the ESP32 flash; the robot runs them by slot.
+ * Chain:  Robot -> petriturn.exe (Python) -> USB Serial -> ESP32 -> TMC2209 -> NEMA17 -> dish
+ *         GUI (petriturn_gui) writes programs into the ESP32 flash; the robot runs them by slot.
  *
  * Libraries (Arduino Library Manager):
  *   - TMCStepper   by teemuatlut
@@ -585,7 +585,7 @@ void setup() {
   driver.begin();
   bool ok = ensureDriver();   // "NOT FOUND" is normal if the 24V is not on yet
   // Informational only; the PC ignores lines that aren't OK/ERR replies.
-  Serial.printf("# PetriPlatter ready, driver %s (0x%02X)\n", ok ? "OK" : "NOT FOUND (24V off?)", driverVersion);
+  Serial.printf("# PetriTurn ready, driver %s (0x%02X)\n", ok ? "OK" : "NOT FOUND (24V off?)", driverVersion);
 }
 
 void updateLed() {

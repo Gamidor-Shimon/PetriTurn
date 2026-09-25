@@ -1,17 +1,17 @@
 """
-PetriPlatter Control Center — create, edit and test dish-rotation programs and store them
-on the PetriPlatter controller (XIAO ESP32-C3 + TMC2209). Gamidor instrument-console design
+PetriTurn Control Center — create, edit and test dish-rotation programs and store them
+on the PetriTurn controller (XIAO ESP32-C3 + TMC2209). Gamidor instrument-console design
 (see theme.py, copied verbatim from the gamidor-ui-design skill).
 
-The robot then runs a stored program with:   platter.exe run <slot>
+The robot then runs a stored program with:   petriturn.exe run <slot>
 Disconnect (or close) this window before the robot uses the port: only one program can hold
 a COM port at a time.
 
 Run:
-    .venv\\Scripts\\python host\\platter_gui.py
+    .venv\\Scripts\\python host\\petriturn_gui.py
 Build the exe (from the project root):
-    .venv\\Scripts\\pyinstaller --onefile --windowed --name platter_gui --icon host\\assets\\app.ico ^
-        --add-data "host\\assets;assets" host\\platter_gui.py
+    .venv\\Scripts\\pyinstaller --onefile --windowed --name petriturn_gui --icon host\\assets\\app.ico ^
+        --add-data "host\\assets;assets" host\\petriturn_gui.py
 """
 
 from __future__ import annotations
@@ -29,11 +29,11 @@ import serial
 from PySide6 import QtGui, QtWidgets
 from PySide6.QtCore import QObject, QPoint, QSettings, Qt, QThread, QTimer, Signal, Slot
 
-from platter_link import (DEFAULT_LIMITS, Config, ConfigError, PlatterError, PlatterLink, Program,
+from petriturn_link import (DEFAULT_LIMITS, Config, ConfigError, PetriTurnError, PetriTurnLink, Program,
                           Step, list_ports, load_config, save_port)
 from theme import DARK, LIGHT, QSS, Pill, card, hsep, muted
 
-APP_NAME = "PetriPlatter Control Center"
+APP_NAME = "PetriTurn Control Center"
 APP_VERSION = "1.0"
 COMPANY = "Gamidor Diagnostics"
 AUTHOR = "Shimon Yeshayahu"
@@ -123,7 +123,7 @@ def arrow_images(colour: str) -> dict[str, str]:
     """Spin-box / combo arrows as small PNGs in the theme's text colour. Stylesheet triangles
     made of borders render as bars on Windows, so they are drawn once per theme instead."""
     out = {}
-    folder = Path(tempfile.gettempdir()) / "petriplatter_gui"
+    folder = Path(tempfile.gettempdir()) / "petriturn_gui"
     folder.mkdir(exist_ok=True)
     for name, points in (("up", ((0, 5), (4, 0), (8, 5))), ("down", ((0, 0), (4, 5), (8, 0)))):
         pm = QtGui.QPixmap(9, 6)
@@ -174,14 +174,14 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.setWindowTitle(APP_NAME)
         self.setWindowIcon(QtGui.QIcon(asset("app.ico")))
-        self.settings = QSettings("GamidorDiagnostics", "PetriPlatter")
+        self.settings = QSettings("GamidorDiagnostics", "PetriTurn")
         try:
-            self.cfg, self.cfg_error = load_config(), None     # platter.ini, shared with the robot
+            self.cfg, self.cfg_error = load_config(), None     # petriturn.ini, shared with the robot
         except ConfigError as e:
             self.cfg, self.cfg_error = Config(), str(e)
         self.dark = self.settings.value("dark", False, type=bool)
 
-        self.link: PlatterLink | None = None
+        self.link: PetriTurnLink | None = None
         self.limits = dict(DEFAULT_LIMITS)
         self.status: dict[str, str] = {}
         self.last_up: int | None = None
@@ -203,7 +203,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         log_dir = data_dir() / "logs"
         log_dir.mkdir(exist_ok=True)
-        self.log_path = log_dir / f"platter_{datetime.date.today():%Y-%m-%d}.log"
+        self.log_path = log_dir / f"petriturn_{datetime.date.today():%Y-%m-%d}.log"
 
         self._build_ui()
         self._start_worker()
@@ -320,7 +320,7 @@ class MainWindow(QtWidgets.QMainWindow):
         row.addWidget(QtWidgets.QLabel("Port"))
         self.port_box = QtWidgets.QComboBox()
         self.port_box.setMinimumWidth(110)
-        self.port_box.setToolTip("USB serial port of the PetriPlatter controller")
+        self.port_box.setToolTip("USB serial port of the PetriTurn controller")
         row.addWidget(self.port_box)
         refresh = QtWidgets.QPushButton("↻")
         refresh.setObjectName("Chip")
@@ -390,7 +390,7 @@ class MainWindow(QtWidgets.QMainWindow):
             btns.addWidget(b)
             self._conn_idle_widgets.append(b)
         cl.addWidget(muted("Programs live in the controller's flash and survive power-off. "
-                           "The robot runs one with  platter.exe run <slot>.", wrap=True))
+                           "The robot runs one with  petriturn.exe run <slot>.", wrap=True))
         row.addWidget(f, 1, Qt.AlignmentFlag.AlignTop)
 
         # editor
@@ -557,7 +557,7 @@ class MainWindow(QtWidgets.QMainWindow):
         grid.addWidget(go, 1, 2)
         self._motion_widgets.append(go)
         cl.addWidget(muted("+ turns clockwise, − counter-clockwise, looking down at the dish. "
-                           "The robot does the same with  platter.exe rotate <turns> <rpm> cw|ccw.",
+                           "The robot does the same with  petriturn.exe rotate <turns> <rpm> cw|ccw.",
                            wrap=True))
         row.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
 
@@ -582,7 +582,7 @@ class MainWindow(QtWidgets.QMainWindow):
         grid.setColumnStretch(1, 1)
         self.auto_refresh = QtWidgets.QCheckBox("auto refresh")
         self.auto_refresh.setChecked(True)
-        self.auto_refresh.setToolTip(f"Read STATUS every {self.cfg.poll_ms / 1000:g} s while idle (poll_ms in platter.ini)")
+        self.auto_refresh.setToolTip(f"Read STATUS every {self.cfg.poll_ms / 1000:g} s while idle (poll_ms in petriturn.ini)")
         cl.addWidget(self.auto_refresh)
         row.addWidget(f, 3, Qt.AlignmentFlag.AlignTop)
 
@@ -665,14 +665,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         f, cl = card("robot command line")
         usage = QtWidgets.QLabel(
-            "platter.exe run <slot>                   run a stored program, exit when it ends\n"
-            "platter.exe rotate <turns> <rpm> cw|ccw  rotate without a program\n"
-            "platter.exe hold | release              lock / free the dish\n"
-            "platter.exe stop | status | list\n\n"
+            "petriturn.exe run <slot>                   run a stored program, exit when it ends\n"
+            "petriturn.exe rotate <turns> <rpm> cw|ccw  rotate without a program\n"
+            "petriturn.exe hold | release              lock / free the dish\n"
+            "petriturn.exe stop | status | list\n\n"
             "exit 0 = OK   1 = timeout, device error or stopped   2 = bad command or empty slot")
         usage.setStyleSheet("font-family: Consolas, monospace;")
         cl.addWidget(usage)
-        cl.addWidget(muted("The port, baud rate and timeouts are in platter.ini next to the programs; "
+        cl.addWidget(muted("The port, baud rate and timeouts are in petriturn.ini next to the programs; "
                            "Connect here writes the port there, so the robot uses the same one. "
                            "Close this window first — only one program can hold the port.",
                            wrap=True))
@@ -752,7 +752,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.clipboard().setText(self.console.toPlainText())
 
     def save_console(self):
-        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save console", "platter_console.txt",
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save console", "petriturn_console.txt",
                                                         "Text files (*.txt)")
         if path:
             Path(path).write_text(self.console.toPlainText(), encoding="utf-8")
@@ -799,7 +799,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if error is None:
             if job.on_done:
                 job.on_done(result)
-        elif isinstance(error, PlatterError):
+        elif isinstance(error, PetriTurnError):
             self.log("warn" if error.reason == "STOPPED" else "err",
                      f"{job.label}: controller replied ERR {error.reason}")
             hint = ERROR_HINTS.get(error.reason)
@@ -883,12 +883,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log("warn", "choose a serial port first")
             return
         try:
-            self.link = PlatterLink.from_config(self.cfg, port)
+            self.link = PetriTurnLink.from_config(self.cfg, port)
         except serial.SerialException as e:
             self.log("err", f"cannot open {port}: {e}")
             if "Access is denied" in str(e) or "PermissionError" in str(e):
                 self.log("warn", "the port is held by another program — close the Arduino serial "
-                                 "monitor or a running platter.exe")
+                                 "monitor or a running petriturn.exe")
             return
         self.log("gui", f"opened {port}")
         link = self.link
@@ -909,7 +909,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.cfg.port = port
                     self.log("gui", f"port {port} saved to {self.cfg.path.name} — the robot uses it too")
                 except OSError as e:
-                    self.log("warn", f"could not save the port to platter.ini: {e}")
+                    self.log("warn", f"could not save the port to petriturn.ini: {e}")
             if not self._driver_ok():
                 self.log("warn", "the driver does not answer: is the 24V on? Motion is disabled "
                                  "until it does.")
@@ -1255,7 +1255,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif not self._driver_ok():
             reason, is_err = "The driver does not answer (24V off?) — cannot run.", True
         else:
-            reason, is_err = f"The robot runs this program with  platter.exe run {slot}", False
+            reason, is_err = f"The robot runs this program with  petriturn.exe run {slot}", False
         self.editor_note.setObjectName("MutedErr" if is_err else "Muted")
         self.editor_note.setText(reason)
         self.editor_note.style().unpolish(self.editor_note)
@@ -1276,7 +1276,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.slot_names[slot] = program.name
             self._refresh_slot_list()
             self.dirty = False
-            self.log("ok", f"slot {slot} saved “{program.name}” — robot: platter.exe run {slot}")
+            self.log("ok", f"slot {slot} saved “{program.name}” — robot: petriturn.exe run {slot}")
             self._update_editor_note()
         self.submit(Job(f"saving slot {slot}", lambda: link.set_program(slot, program), done,
                         tx=f"PSET {slot} {program.to_text()}"))
@@ -1306,7 +1306,7 @@ class MainWindow(QtWidgets.QMainWindow):
 def main():
     if sys.platform == "win32":
         # own taskbar group + icon instead of python.exe's
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GamidorDiagnostics.PetriPlatter")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GamidorDiagnostics.PetriTurn")
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")    # honours the stylesheet's sub-controls; the Windows 11 style does not
     app.setWindowIcon(QtGui.QIcon(asset("app.ico")))

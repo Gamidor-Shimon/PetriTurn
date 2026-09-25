@@ -1,34 +1,34 @@
 """
-platter — command-line bridge between the robot and the PetriPlatter ESP32.
+petriturn — command-line bridge between the robot and the PetriTurn ESP32.
 
 Usage:
-    platter run <slot>                    run a stored program, block until it ends
-    platter rotate <turns> <rpm> cw|ccw   rotate without a program, block until it ends
-    platter hold                          lock the dish (motor energised)
-    platter release                       free the dish (turns by hand)
-    platter stop                          decelerate and stop a motion
-    platter status                        print driver/motor status
-    platter list                          list stored programs
-    platter ping
-    platter ports                         list the serial ports on this PC
+    petriturn run <slot>                    run a stored program, block until it ends
+    petriturn rotate <turns> <rpm> cw|ccw   rotate without a program, block until it ends
+    petriturn hold                          lock the dish (motor energised)
+    petriturn release                       free the dish (turns by hand)
+    petriturn stop                          decelerate and stop a motion
+    petriturn status                        print driver/motor status
+    petriturn list                          list stored programs
+    petriturn ping
+    petriturn ports                         list the serial ports on this PC
 
     cw / ccw = clockwise / counter-clockwise, looking down at the dish.
     enable / disable are kept as aliases of hold / release.
 
 Options:
-    --port COM6                    serial port for this call only (default: platter.ini)
+    --port COM6                    serial port for this call only (default: petriturn.ini)
 
-Settings (port, baud rate, timeouts) live in platter.ini next to this program.
+Settings (port, baud rate, timeouts) live in petriturn.ini next to this program.
 
 Exit codes:
     0 = OK
     1 = timeout / no reply / port error / device error / stopped
     2 = bad command, bad arguments or empty slot
 
-Programs are created with platter_gui.
+Programs are created with petriturn_gui.
 
 Build the exe (from the project root, with the project's .venv):
-    .venv\\Scripts\\pyinstaller --onefile --name platter host\\platter.py
+    .venv\\Scripts\\pyinstaller --onefile --name petriturn host\\petriturn.py
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ import sys
 
 import serial
 
-from platter_link import (BAD_REQUEST_REASONS, ConfigError, PlatterError, PlatterLink, list_ports,
+from petriturn_link import (BAD_REQUEST_REASONS, ConfigError, PetriTurnError, PetriTurnLink, list_ports,
                           load_config)
 
 EXIT_OK, EXIT_FAIL, EXIT_BAD_CMD = 0, 1, 2
@@ -52,8 +52,8 @@ class _Parser(argparse.ArgumentParser):
 
 
 def parse_args():
-    p = _Parser(prog="platter")
-    p.add_argument("--port", help="serial port for this call only (default: platter.ini)")
+    p = _Parser(prog="petriturn")
+    p.add_argument("--port", help="serial port for this call only (default: petriturn.ini)")
     sub = p.add_subparsers(dest="action", required=True)
     run = sub.add_parser("run")
     run.add_argument("slot", type=int)
@@ -74,7 +74,7 @@ def positive_float(text: str) -> float:
     return value
 
 
-def execute(link: PlatterLink, args) -> str:
+def execute(link: PetriTurnLink, args) -> str:
     """Runs the action; returns the text to print."""
     if args.action == "run":
         link.run_program(args.slot)
@@ -107,7 +107,7 @@ def main() -> int:
         return EXIT_FAIL
     port = args.port or cfg.port
     try:
-        link = PlatterLink.from_config(cfg, port)
+        link = PetriTurnLink.from_config(cfg, port)
     except serial.SerialException as e:
         print(f"ERR cannot open {port}: {e}", file=sys.stderr)
         return EXIT_FAIL
@@ -115,7 +115,7 @@ def main() -> int:
     try:
         print(execute(link, args))
         return EXIT_OK
-    except PlatterError as e:
+    except PetriTurnError as e:
         print(f"ERR {e.reason}", file=sys.stderr)
         return EXIT_BAD_CMD if e.reason in BAD_REQUEST_REASONS else EXIT_FAIL
     except TimeoutError as e:

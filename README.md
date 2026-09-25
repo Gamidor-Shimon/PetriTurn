@@ -1,19 +1,19 @@
-# SBS PetriPlater — Gamidor
+# PetriTurn — Gamidor
 
 מכשיר לסיבוב צלחת פטרי בזמן זריעת חיידקים.
 הרובוט מחזיק את הלופה, והמכשיר מסובב את הצלחת לפי תוכנית שנשמרה מראש בבקר.
 
 ```
-Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 → Petri dish
+Robot → petriturn.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 → Petri dish
                  ↑
-   platter_gui (program editor) → writes programs into the controller's flash
+   petriturn_gui (program editor) → writes programs into the controller's flash
 ```
 
 הפרויקט בנוי משלושה חלקים:
 
-1. **קושחה** לבקר — `firmware/PetriPlatter/PetriPlatter.ino`
-2. **שורת פקודה לרובוט** — `host/platter.py` (לאחר בנייה: `platter.exe`)
-3. **תוכנת ניהול (GUI)** — `host/platter_gui.py`, בעיצוב Gamidor
+1. **קושחה** לבקר — `firmware/PetriTurn/PetriTurn.ino`
+2. **שורת פקודה לרובוט** — `host/petriturn.py` (לאחר בנייה: `petriturn.exe`)
+3. **תוכנת ניהול (GUI)** — `host/petriturn_gui.py`, בעיצוב Gamidor
 
 ---
 
@@ -22,7 +22,7 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 1. [מבנה התיקיות](#מבנה-התיקיות)
 2. [חומרה](#חומרה)
 3. [התקנה ראשונה](#התקנה-ראשונה)
-4. [קובץ ההגדרות platter.ini](#קובץ-ההגדרות-platterini)
+4. [קובץ ההגדרות petriturn.ini](#קובץ-ההגדרות-petriturnini)
 5. [תוכנת הניהול (GUI)](#תוכנת-הניהול-gui)
 6. [שורת הפקודה לרובוט](#שורת-הפקודה-לרובוט)
 7. [פרוטוקול התקשורת עם הבקר](#פרוטוקול-התקשורת-עם-הבקר)
@@ -36,23 +36,23 @@ Robot → platter.exe (Python) → USB → XIAO ESP32-C3 → TMC2209 → NEMA17 
 ## מבנה התיקיות
 
 ```
-SBS_PetriPlater/
+PetriTurn/
 ├── README.md                      this document
 ├── WIRING.md                      pin-by-pin wiring: controller, driver, motor, power
 ├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
-├── PetriPlatter.bat               double-click to start the GUI (development PC)
-├── build.bat                      builds the customer package into dist\PetriPlatter
+├── PetriTurn.bat               double-click to start the GUI (development PC)
+├── build.bat                      builds the customer package into dist\PetriTurn
 ├── enclosure/                     3D-printed box: FreeCAD script, STL, STEP, previews
 ├── perfboard/                     controller board: layout + check, README generator, drawings
 ├── requirements.txt               Python packages
 ├── firmware/
-│   └── PetriPlatter/
-│       └── PetriPlatter.ino       controller firmware
+│   └── PetriTurn/
+│       └── PetriTurn.ino       controller firmware
 └── host/
-    ├── platter.ini                settings: port, baud rate, timeouts
-    ├── platter.py                 robot command line
-    ├── platter_gui.py             control GUI
-    ├── platter_link.py            shared code: serial link, programs, settings
+    ├── petriturn.ini                settings: port, baud rate, timeouts
+    ├── petriturn.py                 robot command line
+    ├── petriturn_gui.py             control GUI
+    ├── petriturn_link.py            shared code: serial link, programs, settings
     ├── theme.py                   Gamidor design tokens (gamidor-ui-design skill)
     └── assets/                    logo and icon
 ```
@@ -118,7 +118,7 @@ SBS_PetriPlater/
 
 1. **Boards Manager:** להתקין `esp32` by Espressif.
 2. **Library Manager:** להתקין `TMCStepper` (teemuatlut) ו-`AccelStepper` (Mike McCauley).
-3. לפתוח את `firmware/PetriPlatter/PetriPlatter.ino`.
+3. לפתוח את `firmware/PetriTurn/PetriTurn.ino`.
 4. **Tools:**
    - Board: `XIAO_ESP32C3`
    - USB CDC On Boot: **`Enabled`** — בלי זה אין תקשורת דרך ה-USB
@@ -146,19 +146,19 @@ python -m venv .venv
 
 ### 3. הפעלה
 
-- **GUI:** לחיצה כפולה על `PetriPlatter.bat`
-  (לא על `platter_gui.py` ישירות — אז הוא רץ עם ה-Python של המערכת, שאין בו PySide6).
+- **GUI:** לחיצה כפולה על `PetriTurn.bat`
+  (לא על `petriturn_gui.py` ישירות — אז הוא רץ עם ה-Python של המערכת, שאין בו PySide6).
 - **שורת פקודה:**
 
 ```bash
-.venv\Scripts\python host\platter.py status
+.venv\Scripts\python host\petriturn.py status
 ```
 
 ---
 
-## קובץ ההגדרות platter.ini
+## קובץ ההגדרות petriturn.ini
 
-נמצא ב-`host/platter.ini` (אחרי בנייה: ליד קובצי ה-exe).
+נמצא ב-`host/petriturn.ini` (אחרי בנייה: ליד קובצי ה-exe).
 **גם הרובוט וגם ה-GUI קוראים ממנו**, כך שהפורט מוגדר במקום אחד.
 אם הקובץ חסר — הוא נוצר מחדש עם ברירות המחדל.
 
@@ -260,22 +260,22 @@ poll_ms = 1000       ; GUI live-status refresh, milliseconds
 **1. תוכנית שמורה** — הוגדרה מראש ב-GUI:
 
 ```bash
-platter.exe run 3
+petriturn.exe run 3
 ```
 
 **2. פקודות ישירות, בלי תוכנית** — הרובוט שולט בכל שלב בעצמו. למשל:
 
 ```bash
-platter.exe hold
+petriturn.exe hold
 ```
 ```bash
-platter.exe rotate 2 30 cw
+petriturn.exe rotate 2 30 cw
 ```
 ```bash
-platter.exe rotate 0.5 10 ccw
+petriturn.exe rotate 0.5 10 ccw
 ```
 ```bash
-platter.exe release
+petriturn.exe release
 ```
 
 (נועלים את הצלחת, ממקמים את הלופה, מסובבים 2 סיבובים עם כיוון השעון ב-30 RPM,
@@ -283,23 +283,23 @@ platter.exe release
 
 | פקודה | מה היא עושה |
 |---|---|
-| `platter run <slot>` | מריץ תוכנית שמורה. **חוסם עד סוף התוכנית**, ואז יוצא |
-| `platter rotate <turns> <rpm> cw` | סיבוב **עם** כיוון השעון. חוסם עד סוף הסיבוב |
-| `platter rotate <turns> <rpm> ccw` | סיבוב **נגד** כיוון השעון. חוסם עד סוף הסיבוב |
-| `platter hold` | נועל את הצלחת (המנוע מחזיק) |
-| `platter release` | משחרר את הצלחת (מסתובבת ביד) |
-| `platter stop` | עוצר תנועה (האטה ועצירה) |
-| `platter status` | מצב הבקר (ראו [STATUS](#שדות-status)) |
-| `platter list` | רשימת התוכניות השמורות |
-| `platter ping` | בדיקת חיבור |
-| `platter ports` | הפורטים הזמינים במחשב |
+| `petriturn run <slot>` | מריץ תוכנית שמורה. **חוסם עד סוף התוכנית**, ואז יוצא |
+| `petriturn rotate <turns> <rpm> cw` | סיבוב **עם** כיוון השעון. חוסם עד סוף הסיבוב |
+| `petriturn rotate <turns> <rpm> ccw` | סיבוב **נגד** כיוון השעון. חוסם עד סוף הסיבוב |
+| `petriturn hold` | נועל את הצלחת (המנוע מחזיק) |
+| `petriturn release` | משחרר את הצלחת (מסתובבת ביד) |
+| `petriturn stop` | עוצר תנועה (האטה ועצירה) |
+| `petriturn status` | מצב הבקר (ראו [STATUS](#שדות-status)) |
+| `petriturn list` | רשימת התוכניות השמורות |
+| `petriturn ping` | בדיקת חיבור |
+| `petriturn ports` | הפורטים הזמינים במחשב |
 
 - `<turns>` — מספר סיבובים, חיובי. אפשר שבר: `0.25` = רבע סיבוב. עד 100.
 - `<rpm>` — מהירות, 0.1 עד 120.
 - `cw` / `ccw` — **כשמסתכלים על הצלחת מלמעלה.**
 - סיבוב תמיד רץ כשהמנוע מחזיק; אחרי הסיבוב הצלחת **נשארת נעולה** עד `release`.
 - `enable` / `disable` — שמות ישנים ל-`hold` / `release`, עדיין עובדים.
-- `--port COM7` — פורט לקריאה זו בלבד. בלי זה — מ-`platter.ini`.
+- `--port COM7` — פורט לקריאה זו בלבד. בלי זה — מ-`petriturn.ini`.
 
 ### קודי יציאה
 
@@ -313,7 +313,7 @@ platter.exe release
 
 ### תזמון
 
-- הפעלה של `platter.exe` לוקחת כשנייה לפני שהפקודה נשלחת (נמדד: 0.85 שניות).
+- הפעלה של `petriturn.exe` לוקחת כשנייה לפני שהפקודה נשלחת (נמדד: 0.85 שניות).
 - `run` יוצא רק כשהתוכנית נגמרה. זמן ההמתנה המקסימלי = הזמן המשוער + `run_margin`.
 - פתיחת הפורט **לא מאתחלת את הבקר** — הצלחת נשארת מוחזקת בין הרצות
   (נבדק: `UP` ממשיך לעלות בין קריאות).
@@ -399,11 +399,11 @@ PSET 1 Streak A|HOLD|ROT 90 20|WAIT 1500|ROT 90 20|WAIT 1500|ROT -180 10|RELEASE
 | `DIAG` מחזיר `A0=0` בכל הכתובות | אין 24V, או ערוץ התקשורת תקוע | לבדוק 24V; אם קיים — כפתור `RST` ב-XIAO |
 | `DIAG` מחזיר `A0=4` בכל הכתובות | החוטים תקינים אבל הדרייבר לא עונה | לבדוק `MS1`/`MS2` ל-GND; לנסות את פין `PDN` במקום `USART` |
 | `URX` עולה מעל 0 | ערוץ התקשורת נתקע והבקר תיקן אותו | המנוע ממשיך לעבוד; לרשום מתי זה קרה |
-| הפורט תפוס (`Access is denied`) | ה-GUI, ה-Serial Monitor או platter.exe אחר מחזיק אותו | לסגור אותם |
+| הפורט תפוס (`Access is denied`) | ה-GUI, ה-Serial Monitor או petriturn.exe אחר מחזיק אותו | לסגור אותם |
 | המחשב לא מזהה את הבקר על המטריצה | חוט ליד שקע ה-USB-C חוסם את התקע | להרחיק חוטים מהשקע |
 | המנוע רועד ולא מסתובב | זוגות הסלילים מעורבבים | 24V כבוי, למדוד A1–A2 ≈ 9.3Ω ו-B1–B2 ≈ 9.3Ω |
 | הצלחת מסתובבת לכיוון ההפוך | — | `INVERT_DIR = true` בקושחה, בלי לגעת בחוטים |
-| לחיצה כפולה על `platter_gui.py` לא פותחת כלום | רץ עם Python של המערכת, בלי PySide6 | להשתמש ב-`PetriPlatter.bat` |
+| לחיצה כפולה על `petriturn_gui.py` לא פותחת כלום | רץ עם Python של המערכת, בלי PySide6 | להשתמש ב-`PetriTurn.bat` |
 | הצריבה נכשלת | הבקר לא נכנס למצב צריבה | להחזיק BOOT בזמן חיבור ה-USB |
 
 ---
@@ -416,13 +416,13 @@ PSET 1 Streak A|HOLD|ROT 90 20|WAIT 1500|ROT 90 20|WAIT 1500|ROT -180 10|RELEASE
 build.bat
 ```
 
-החבילה נוצרת ב-`dist\PetriPlatter`:
+החבילה נוצרת ב-`dist\PetriTurn`:
 
 | קובץ | תפקיד |
 |---|---|
-| `platter.exe` | שורת הפקודה לרובוט |
-| `platter_gui.exe` | תוכנת הניהול |
-| `platter.ini` | הגדרות — נקרא על ידי שניהם |
+| `petriturn.exe` | שורת הפקודה לרובוט |
+| `petriturn_gui.exe` | תוכנת הניהול |
+| `petriturn.ini` | הגדרות — נקרא על ידי שניהם |
 | `README.md` | המסמך הזה |
 
 ---
@@ -431,11 +431,11 @@ build.bat
 
 במחשב של הלקוח **לא צריך Python**, ולא צריך דרייבר ל-USB (Windows 10/11 מזהה את ה-XIAO לבד).
 
-1. להעתיק את התיקייה `PetriPlatter` כולה, למשל ל-`C:\PetriPlatter`.
-   - בתיקייה שיש בה הרשאת כתיבה (לא `C:\Program Files`) — התוכנה כותבת לידה את `platter.ini` ואת היומנים.
+1. להעתיק את התיקייה `PetriTurn` כולה, למשל ל-`C:\PetriTurn`.
+   - בתיקייה שיש בה הרשאת כתיבה (לא `C:\Program Files`) — התוכנה כותבת לידה את `petriturn.ini` ואת היומנים.
 2. לחבר את הבקר ב-USB. לחבר 24V.
-3. להפעיל את `platter_gui.exe`, לבחור את הפורט ו-**Connect**.
-   הפורט נשמר ב-`platter.ini` — מעכשיו גם `platter.exe` משתמש בו.
+3. להפעיל את `petriturn_gui.exe`, לבחור את הפורט ו-**Connect**.
+   הפורט נשמר ב-`petriturn.ini` — מעכשיו גם `petriturn.exe` משתמש בו.
 4. **לבדוק כיוון:** בעמוד Manual control, סיבוב `0.25` (חיובי). הצלחת צריכה להסתובב
    **עם כיוון השעון כשמסתכלים עליה מלמעלה**. אם לא — לתקן `INVERT_DIR` בקושחה ולצרוב מחדש
    (לעשות את זה אצלנו, לפני המסירה).
@@ -444,7 +444,7 @@ build.bat
 7. להגדיר ברובוט את הקריאות, עם הנתיב המלא. למשל:
 
 ```bash
-C:\PetriPlatter\platter.exe run 1
+C:\PetriTurn\petriturn.exe run 1
 ```
 
    ולבדוק את קוד היציאה (`0` = הצליח).

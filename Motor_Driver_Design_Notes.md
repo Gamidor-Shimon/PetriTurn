@@ -194,10 +194,10 @@ Hardware: not applicable on XIAO ESP32-C3 (native USB, internal reset)
 דוגמאות שימוש:
 
 ```
-platter.exe rotate 360 30     → rotate 360° at 30 RPM, wait until done
-platter.exe enable
-platter.exe disable
-platter.exe status
+petriturn.exe rotate 360 30     → rotate 360° at 30 RPM, wait until done
+petriturn.exe enable
+petriturn.exe disable
+petriturn.exe status
 ```
 
 כללים:
@@ -276,16 +276,16 @@ PyInstaller --onefile ≈ 1–3 s startup
 זה עונה על שאלה פתוחה 2.
 
 ```
-GUI (platter_gui) → PSET → ESP32 flash (20 slots, up to 32 steps each)
-Robot → platter.exe run <slot> → RUN <slot> → "OK" when the program ends
+GUI (petriturn_gui) → PSET → ESP32 flash (20 slots, up to 32 steps each)
+Robot → petriturn.exe run <slot> → RUN <slot> → "OK" when the program ends
 ```
 
 - צעד בתוכנית: סיבוב (סיבובים, מהירות), המתנה, החזקת צלחת (`HOLD`) או שחרור (`RELEASE`). מספר שלילי = כיוון הפוך.
 - סיבוב תמיד רץ כשהמנוע מחזיק, גם אחרי צעד שחרור. `HOLD` / `RELEASE` בסוף התוכנית קובעים אם הצלחת נשארת נעולה.
 - התוכניות נשמרות גם אחרי כיבוי.
 - ה-GUI והרובוט לא יכולים להחזיק את הפורט באותו זמן. לסגור את ה-GUI לפני עבודה.
-- הפרוטוקול המלא: בראש הקובץ `firmware/PetriPlatter/PetriPlatter.ino`.
-- ה-GUI: `host/platter_gui.py`, PySide6, בעיצוב Gamidor (סקיל `gamidor-ui-design`). רץ מתוך הסביבה `.venv` שבתיקיית הפרויקט.
+- הפרוטוקול המלא: בראש הקובץ `firmware/PetriTurn/PetriTurn.ino`.
+- ה-GUI: `host/petriturn_gui.py`, PySide6, בעיצוב Gamidor (סקיל `gamidor-ui-design`). רץ מתוך הסביבה `.venv` שבתיקיית הפרויקט.
 
 ---
 

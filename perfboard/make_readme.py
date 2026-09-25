@@ -136,7 +136,7 @@ top_wires = ", ".join(f"W{i}" for i, w in enumerate(L.WIRES, 1) if w[4] == "top"
 bottom_wires = ", ".join(f"W{i}" for i, w in enumerate(L.WIRES, 1) if w[4] == "bottom")
 
 xl = lambda keys: ", ".join(keys)
-text = f"""# לוח ההלחמה — SBS PetriPlater
+text = f"""# לוח ההלחמה — PetriTurn
 
 הלוח: **לוח הלחמה בסגנון מטריצה, 89 × 52 מ"מ, בשלמותו — בלי חיתוך.** 30 שורות.
 בכל שורה **A–E מחוברים** ו-**F–J מחוברים**, ואין חיבור בין E ל-F — בדיוק כמו במטריצה שעליה המערכת עבדה.
