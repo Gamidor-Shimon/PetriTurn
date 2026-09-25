@@ -10,7 +10,8 @@ Or without the FreeCAD window, from the project root:
     "C:\\Program Files\\FreeCAD 1.1\\bin\\freecadcmd.exe" -c "exec(open(r'enclosure/build_enclosure.py').read(), {'__file__': r'enclosure/build_enclosure.py'})"
 
 All sizes in mm. Coordinates: X along the SBS length (127.76), Y along the width (85.48),
-Z up; origin at the centre of the footprint, on the bench. All connectors in the +X end.
+Z up; origin at the centre of the box, on the bench. The motor / dish sit MOTOR_X towards
++X; the controller board is on the -X side; all connectors in the +X end.
 
 Parts
     base      tray with walls, board standoffs, lid screw posts, connector panel in the +X end
@@ -34,8 +35,10 @@ V = FreeCAD.Vector
 # Parameters - measure the parts marked (MEASURE) before the final print
 # =============================================================================
 
-# SBS / ANSI-SLAS footprint (microplate)
-FOOT_X, FOOT_Y, FOOT_R = 127.76, 85.48, 3.18
+# Box footprint. Wider than SBS (127.76 x 85.48) so the full 89 x 52 controller board fits
+# beside the motor without cutting it.
+FOOT_X, FOOT_Y, FOOT_R = 130.0, 96.0, 4.0
+MOTOR_X = 13.0            # motor / dish centre, from the box centre towards +X (connector panel)
 WALL = 2.4
 FLOOR = 2.4
 
@@ -61,18 +64,20 @@ M3_CSK_D = 6.6                           # countersink top diameter (M3 flat hea
 POST_R = 3.6
 POST_INSET = 3.0                          # post centre from the inner wall corner
 
-# Controller board: breadboard-style PCB (89 x 52) with the power rails cut off and cut to
-# 22 rows -> 32 x 60 mm, on the -X side of the motor, in the -Y corner (see perfboard/)
-PB_X, PB_Y, PB_T = 32.0, 60.0, 1.6        # (MEASURE after cutting)
-PB_X0, PB_Y0 = -54.0, -20.0               # board corner at -X, -Y (row 1 / XIAO end)
-PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.2   # M2.5 self-tapping screws
-PB_HOLE_INSET = 2.5                       # drill the 4 mounting holes this far from the edges
+# Controller board: breadboard-style PCB, 89 x 52 mm, uncut, on the -X side of the motor.
+# Rows run along Y (row 1 at -Y), columns across X (see perfboard/).
+PB_X, PB_Y, PB_T = 52.0, 89.0, 1.6
+PB_GAP = 1.0                              # board edge to the -X wall
+PB_MOUNT_DY = 71.5                        # (MEASURE) the 2 mounting holes on the centre line
+PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.6   # M3 self-tapping screws
+PB_PAD_D, PB_PAD_INSET = 5.0, 3.0         # support pads (no screw) under the 4 corners
+PB_ROWS, PB_PITCH = 30, 2.54
+XIAO_ROW = 10                             # centre row of the XIAO (rows 7..13, USB towards row 1)
 PB_PARTS_H = 22.0         # tallest part on the board (TMC2209 + heatsink on female headers)
 
 # The XIAO's USB-C (it straddles the board channel, USB towards -Y). A panel-mount USB-C
 # extension cable runs from it to the connector panel; a 90 deg (up-angle) USB-C adapter
 # on the XIAO turns the cable upwards - there are ~20 mm in front of the XIAO for it.
-USB_X = PB_X0 + (PB_X - 11 * 2.54) / 2 + 6 * 2.54
 USB_Z = 21.3              # centre height of the XIAO's USB-C (female headers 8.5 mm)
 PLUG_ZONE = 14.0          # room the 90 deg adapter takes in front of the XIAO (-Y)
 
@@ -93,12 +98,13 @@ USB_FLANGE = (22.0, 10.5, 25.0)   # flange width, body height, depth inside (bod
 USB_POCKET = (12.4, 7.0, WALL - 0.8)   # width, height, depth from outside
 PANEL_DEPTH = {"usb": 22.0, "dc": 14.0, "hole": 22.0}   # how far each part reaches inside
 
-# Ventilation slots in the long walls, next to the driver
-VENT_N, VENT_W, VENT_Z0, VENT_Z1 = 6, 2.5, 14.0, 34.0
+# Ventilation slots in the -X end wall, next to the board
+VENT_N, VENT_W, VENT_Z0, VENT_Z1 = 9, 2.5, 14.0, 34.0
+VENT_Y = 30.0             # slots spread over y = -VENT_Y .. +VENT_Y
 
 # Dish nest
 DISH_D = 90.0             # (MEASURE) outer diameter of the dish base
-PLATE_D = 84.0            # stays inside the 85.48 SBS width
+PLATE_D = 84.0
 PLATE_T = 3.0
 HUB_GAP = 2.0             # air gap between the lid and the hub
 HUB_D = 18.0
@@ -114,8 +120,8 @@ PAD_D, PAD_DEPTH, PAD_R = 10.0, 0.8, 30.0   # pockets for anti-slip pads
 # Lettering
 FONT = "C:/Windows/Fonts/segoeuib.ttf"
 TEXT_DEPTH = 0.6
-LID_TEXT_LEFT = "GAMIDOR DIAGNOSTICS"
-LID_TEXT_RIGHT = "SBS PETRIPLATER"
+LID_TEXT_1 = "GAMIDOR DIAGNOSTICS"      # both lines in the free strip left of the nest
+LID_TEXT_2 = "SBS PETRIPLATER"
 LID_TEXT_H = 5.0
 WALL_TEXT_H = 4.0
 
@@ -134,6 +140,16 @@ PLATE_TOP = FLANGE_TOP + PLATE_T
 IN_X, IN_Y = FOOT_X / 2 - WALL, FOOT_Y / 2 - WALL
 POSTS = [(sx * (IN_X - POST_INSET), sy * (IN_Y - POST_INSET)) for sx in (-1, 1) for sy in (-1, 1)]
 PB_Z0 = FLOOR + PB_STANDOFF_H
+PB_X0, PB_Y0 = -IN_X + PB_GAP, -PB_Y / 2
+PB_CX = PB_X0 + PB_X / 2                          # board centre line = its middle channel
+# the posts over the board (-X corners) hang from the lid down to just above the parts
+POST_HANG_Z = PB_Z0 + PB_T + PB_PARTS_H + POST_R + 1.0   # the cone tip clears the parts too
+USB_X = PB_CX + PB_PITCH / 2                      # XIAO straddles the channel: D..H columns
+
+
+def pb_row(r):
+    """y of board row r (row 1 at the -Y end)."""
+    return PB_Y0 + (PB_Y - (PB_ROWS - 1) * PB_PITCH) / 2 + (r - 1) * PB_PITCH
 
 
 # =============================================================================
@@ -190,20 +206,28 @@ def make_base():
     base = shell.cut(cavity)
 
     # lid screw posts with heat inserts
-    posts = [cyl(POST_R, FLOOR, BASE_H - FLOOR, x, y) for x, y in POSTS]
-    # fill from each post into its corner, so the post is part of both walls
+    posts = []
     for x, y in POSTS:
+        # full height at the +X corners; over the board (-X) they hang from the top, with a
+        # 45 deg cone underneath so they print without supports
+        z0 = FLOOR if x > 0 else POST_HANG_Z
+        posts.append(cyl(POST_R, z0, BASE_H - z0, x, y))
+        if x < 0:
+            posts.append(Part.makeCone(0.01, POST_R, POST_R, V(x, y, z0 - POST_R)))
+        # fill from each post into its corner, so the post is part of both walls
         wx, wy = math.copysign(IN_X + 0.1, x), math.copysign(IN_Y + 0.1, y)
-        posts.append(box(min(x, wx), max(x, wx), min(y, wy), max(y, wy), FLOOR, BASE_H))
+        posts.append(box(min(x, wx), max(x, wx), min(y, wy), max(y, wy), z0, BASE_H))
     base = fuse_all([base] + posts)
     for x, y in POSTS:
         base = base.cut(cyl(M3_INSERT_D / 2, BASE_H - M3_INSERT_L, M3_INSERT_L + 1, x, y))
 
-    # perfboard standoffs
-    for hx in (PB_X0 + PB_HOLE_INSET, PB_X0 + PB_X - PB_HOLE_INSET):
-        for hy in (PB_Y0 + PB_HOLE_INSET, PB_Y0 + PB_Y - PB_HOLE_INSET):
-            base = base.fuse(cyl(PB_STANDOFF_D / 2, FLOOR - 0.1, PB_STANDOFF_H + 0.1, hx, hy))
-            base = base.cut(cyl(PB_PILOT_D / 2, FLOOR, PB_STANDOFF_H + 1, hx, hy))
+    # board: 2 screw standoffs under its mounting holes, 4 plain pads under the corners
+    for hy in (-PB_MOUNT_DY / 2, PB_MOUNT_DY / 2):
+        base = base.fuse(cyl(PB_STANDOFF_D / 2, FLOOR - 0.1, PB_STANDOFF_H + 0.1, PB_CX, hy))
+        base = base.cut(cyl(PB_PILOT_D / 2, FLOOR, PB_STANDOFF_H + 1, PB_CX, hy))
+    for px in (PB_X0 + PB_PAD_INSET, PB_X0 + PB_X - PB_PAD_INSET):
+        for py in (PB_Y0 + PB_PAD_INSET, PB_Y0 + PB_Y - PB_PAD_INSET):
+            base = base.fuse(cyl(PB_PAD_D / 2, FLOOR - 0.1, PB_STANDOFF_H + 0.1, px, py))
 
     # connector panel in the +X end wall, each opening labelled above it
     x_out, x_in = FOOT_X / 2 + 1, IN_X - 1
@@ -226,18 +250,11 @@ def make_base():
         base = base.cut(placed(text_solid(label, WALL_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(0, 0, 1),
                                V(1, 0, 0), V(FOOT_X / 2, y, top + 3.0 + WALL_TEXT_H / 2)))
 
-    # ventilation slots, both long walls, beside the perfboard
-    # clear of the corner posts (they end at x = -IN_X + POST_INSET + POST_R)
-    x_first = -IN_X + POST_INSET + POST_R + 2 + VENT_W / 2
-    x_last = PB_X0 + PB_X - 2
-    xs = [x_first + i * (x_last - x_first) / (VENT_N - 1) for i in range(VENT_N)]
-    for x in xs:
-        for sy in (-1, 1):
-            slot = box(x - VENT_W / 2, x + VENT_W / 2,
-                       sy * IN_Y - 1 if sy > 0 else -FOOT_Y / 2 - 1,
-                       FOOT_Y / 2 + 1 if sy > 0 else -IN_Y + 1,
-                       VENT_Z0, VENT_Z1)
-            base = base.cut(slot)
+    # ventilation slots in the -X end wall, beside the board
+    for i in range(VENT_N):
+        y = -VENT_Y + i * 2 * VENT_Y / (VENT_N - 1)
+        base = base.cut(box(-FOOT_X / 2 - 1, -IN_X + 1, y - VENT_W / 2, y + VENT_W / 2,
+                            VENT_Z0, VENT_Z1))
 
     return base.removeSplitter()
 
@@ -246,13 +263,16 @@ def make_base():
 # Lid
 # =============================================================================
 def lid_lettering():
-    left = text_solid(LID_TEXT_LEFT, LID_TEXT_H, TEXT_DEPTH)
-    right = text_solid(LID_TEXT_RIGHT, LID_TEXT_H, TEXT_DEPTH)
-    strip = (PLATE_D / 2 + FOOT_X / 2) / 2 + 1.0          # middle of the free strip beside the nest
+    # two lines in the free strip between the -X edge and the nest (clips reach DISH_D/2 + 2.8)
+    strip_l, strip_r = -FOOT_X / 2 + 6, MOTOR_X - DISH_D / 2 - 4
+    x1 = strip_l + (strip_r - strip_l) * 0.33
+    x2 = strip_l + (strip_r - strip_l) * 0.72
     # reads bottom-to-top when standing at the -Y side
-    left = placed(left, V(0, 1, 0), V(-1, 0, 0), V(0, 0, 1), V(-strip, 0, LID_TOP))
-    right = placed(right, V(0, 1, 0), V(-1, 0, 0), V(0, 0, 1), V(strip, 0, LID_TOP))
-    return left.fuse(right)
+    t1 = placed(text_solid(LID_TEXT_1, LID_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(-1, 0, 0),
+                V(0, 0, 1), V(x1, 0, LID_TOP))
+    t2 = placed(text_solid(LID_TEXT_2, LID_TEXT_H, TEXT_DEPTH), V(0, 1, 0), V(-1, 0, 0),
+                V(0, 0, 1), V(x2, 0, LID_TOP))
+    return t1.fuse(t2)
 
 
 def make_lid():
@@ -267,9 +287,11 @@ def make_lid():
                  BASE_H - LIP_H, BASE_H) for sx in (-1, 1)]
     lid = fuse_all([lid] + lips)
     # motor boss and shaft
-    lid = lid.cut(cyl(MOTOR_BOSS_D / 2 + 0.3, BASE_H - 1, LID_T + 2))
+    lid = lid.cut(cyl(MOTOR_BOSS_D / 2 + 0.3, BASE_H - 1, LID_T + 2, MOTOR_X))
     # motor screws and lid screws, counterbored from the top
-    for x, y in [(sx * MOTOR_HOLES / 2, sy * MOTOR_HOLES / 2) for sx in (-1, 1) for sy in (-1, 1)] + POSTS:
+    motor_screws = [(MOTOR_X + sx * MOTOR_HOLES / 2, sy * MOTOR_HOLES / 2)
+                    for sx in (-1, 1) for sy in (-1, 1)]
+    for x, y in motor_screws + POSTS:
         lid = lid.cut(cyl(M3_CLEAR / 2, BASE_H - LIP_H - 1, LID_T + LIP_H + 2, x, y))
         lid = lid.cut(cyl(M3_HEAD_D / 2, LID_TOP - M3_HEAD_H, M3_HEAD_H + 1, x, y))
     text = lid_lettering()
@@ -298,6 +320,7 @@ def make_hub():
         x = PLATE_SCREW_R * math.cos(math.radians(a + 30))
         y = PLATE_SCREW_R * math.sin(math.radians(a + 30))
         hub = hub.cut(cyl(M3_INSERT_D / 2, FLANGE_TOP - M3_INSERT_L, M3_INSERT_L + 1, x, y))
+    hub.translate(V(MOTOR_X, 0, 0))
     return hub
 
 
@@ -333,27 +356,26 @@ def make_plate():
         x = PAD_R * math.cos(math.radians(a + 60))
         y = PAD_R * math.sin(math.radians(a + 60))
         plate = plate.cut(cyl(PAD_D / 2, PLATE_TOP - PAD_DEPTH, PAD_DEPTH + 1, x, y))
-    return plate.removeSplitter()
+    plate = plate.removeSplitter()
+    plate.translate(V(MOTOR_X, 0, 0))
+    return plate
 
 
 # =============================================================================
 # Reference models (not printed) - used for the collision check and the preview
 # =============================================================================
 def reference_models():
-    motor = box(-MOTOR_W / 2, MOTOR_W / 2, -MOTOR_W / 2, MOTOR_W / 2, BASE_H - MOTOR_L, BASE_H)
-    motor = motor.fuse(cyl(MOTOR_BOSS_D / 2, BASE_H, MOTOR_BOSS_H))
+    motor = box(MOTOR_X - MOTOR_W / 2, MOTOR_X + MOTOR_W / 2, -MOTOR_W / 2, MOTOR_W / 2,
+                BASE_H - MOTOR_L, BASE_H)
+    motor = motor.fuse(cyl(MOTOR_BOSS_D / 2, BASE_H, MOTOR_BOSS_H, MOTOR_X))
     flat = SHAFT_D / 2 - SHAFT_FLAT
-    shaft = cyl(SHAFT_D / 2, BASE_H, SHAFT_L).common(
-        box(-SHAFT_D, flat, -SHAFT_D, SHAFT_D, BASE_H - 1, BASE_H + SHAFT_L + 1))
+    shaft = cyl(SHAFT_D / 2, BASE_H, SHAFT_L, MOTOR_X).common(
+        box(MOTOR_X - SHAFT_D, MOTOR_X + flat, -SHAFT_D, SHAFT_D, BASE_H - 1, BASE_H + SHAFT_L + 1))
     board = box(PB_X0, PB_X0 + PB_X, PB_Y0, PB_Y0 + PB_Y, PB_Z0, PB_Z0 + PB_T)
     parts = box(PB_X0 + 1, PB_X0 + PB_X - 1, PB_Y0 + 1, PB_Y0 + PB_Y - 1,
                 PB_Z0 + PB_T, PB_Z0 + PB_T + PB_PARTS_H)
-    # C1 lies flat along the board's -X edge, outside the board (rows 10..15)
-    row = lambda r: PB_Y0 + (PB_Y - 21 * 2.54) / 2 + (r - 1) * 2.54
-    c1 = box(PB_X0 - 6.5, PB_X0, row(10), row(10) + 12.0, PB_Z0 + PB_T, PB_Z0 + PB_T + 6.5)
-    parts = parts.fuse(c1)
     # the 90 deg USB-C adapter in front of the XIAO (towards -Y), cable going up
-    usb_edge = row(4) - 10.5 - 0.8           # XIAO centre row 4, half length, receptacle
+    usb_edge = pb_row(XIAO_ROW) - 10.5 - 0.8           # XIAO half length + receptacle
     usb = box(USB_X - 7, USB_X + 7, usb_edge - PLUG_ZONE, usb_edge, USB_Z - 4, USB_Z + 15)
     panel = []
     for kind, y, z, size, label in PANEL:
@@ -364,7 +386,8 @@ def reference_models():
         else:
             panel.append(Part.makeCylinder(size / 2 + 2.5, d, V(IN_X, y, z), V(-1, 0, 0)))
     jack = fuse_all(panel)
-    dish = cyl(DISH_D / 2, PLATE_TOP, 14.0).cut(cyl(DISH_D / 2 - 1.2, PLATE_TOP + 1.2, 14))
+    dish = cyl(DISH_D / 2, PLATE_TOP, 14.0, MOTOR_X).cut(
+        cyl(DISH_D / 2 - 1.2, PLATE_TOP + 1.2, 14, MOTOR_X))
     return {"motor": motor, "shaft": shaft, "perfboard": board, "board parts": parts,
             "usb-c": usb, "dc jack": jack, "dish": dish}
 
@@ -432,7 +455,7 @@ def main():
     refs = reference_models()
 
     report = [f"base height {BASE_H:.1f}, lid top {LID_TOP:.1f}, dish bottom {PLATE_TOP:.1f} mm "
-              f"above the bench", f"footprint {FOOT_X} x {FOOT_Y} mm"]
+              f"above the bench", f"footprint {FOOT_X} x {FOOT_Y} mm, dish centre x = {MOTOR_X:+.1f} mm"]
     report += check(printed, refs)
     for name, shape in printed.items():
         report.append(f"{name}: valid={shape.isValid()} solids={len(shape.Solids)} "

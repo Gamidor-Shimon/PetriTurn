@@ -6,11 +6,11 @@ Run (from the project root):
     .venv\\Scripts\\python perfboard\\layout.py
 
 The board
-    A breadboard-style PCB, 89 x 52 mm as bought, 30 rows. In every row A-E are joined and
-    F-J are joined (like a breadboard); E and F are not. The power rails on both long sides
-    are cut off and the board is cut to 22 rows -> about 32 x 60 mm.
+    A breadboard-style PCB, 89 x 52 mm, used whole (not cut). 30 rows. In every row A-E are
+    joined and F-J are joined (like a breadboard); E and F are not. The power rails along both
+    long sides are not used. Rows 1-6 stay empty: the 90 deg USB-C adapter sits over them.
     columns A..J   A-E | channel | F-J   (E to F = 3 x 2.54 mm, like a breadboard)
-    rows    1..22  row 1 at the USB end (the XIAO's USB-C looks out over row 1)
+    rows    1..30  row 1 at the -Y end; the XIAO's USB-C looks towards row 1
 The XIAO and the TMC2209 straddle the channel, exactly like on the test breadboard.
 """
 
@@ -28,8 +28,10 @@ PITCH = 2.54
 GAP = 3                      # E -> F distance in pitches (check: 7.6 mm between hole centres)
 COLS = "ABCDEFGHIJ"
 COL_X = {c: (i if i < 5 else i + GAP - 1) for i, c in enumerate(COLS)}   # A0..E4, F7..J11
-ROWS = 22
-BOARD_W, BOARD_H = 32.0, 60.0    # after cutting (measure)
+ROWS = 30
+BOARD_W, BOARD_H = 52.0, 89.0
+MOUNT_DY = 71.5          # the board's 2 mounting holes, on the channel line, this far apart
+DY = 6                   # the layout starts 6 rows in (rows 1-6: room for the USB adapter)
 
 
 def hole(h: str) -> tuple[str, int]:
@@ -40,22 +42,22 @@ def hole(h: str) -> tuple[str, int]:
 # Components: pin -> hole
 # -----------------------------------------------------------------------------
 XIAO = {  # 2 x 7 female headers across the channel; USB-C towards row 1 (the USB wall)
-    "5V": "D1", "GND": "D2", "3V3": "D3", "D10": "D4", "D9": "D5", "D8": "D6", "D7": "D7",
-    "D0": "H1", "D1": "H2", "D2": "H3", "D3": "H4", "D4": "H5", "D5": "H6", "D6": "H7",
+    "5V": "D7", "GND": "D8", "3V3": "D9", "D10": "D10", "D9": "D11", "D8": "D12", "D7": "D13",
+    "D0": "H7", "D1": "H8", "D2": "H9", "D3": "H10", "D4": "H11", "D5": "H12", "D6": "H13",
 }
 TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO
-    "EN": "G10", "MS1": "G11", "MS2": "G12", "PDN": "G13", "USART": "G14", "CLK": "G15",
-    "STEP": "G16", "DIR": "G17",
-    "VM": "D10", "GND_P": "D11", "A2": "D12", "A1": "D13", "B1": "D14", "B2": "D15",
-    "VDD": "D16", "GND_L": "D17",
+    "EN": "G16", "MS1": "G17", "MS2": "G18", "PDN": "G19", "USART": "G20", "CLK": "G21",
+    "STEP": "G22", "DIR": "G23",
+    "VM": "D16", "GND_P": "D17", "A2": "D18", "A1": "D19", "B1": "D20", "B2": "D21",
+    "VDD": "D22", "GND_L": "D23",
 }
-R1 = {"1": "J5", "2": "J14"}        # 1k, lying along column J: D4 strip -> USART strip
-R2 = {"1": "I9", "2": "I10"}        # 10k, standing: 3.3V bus -> EN
-C1 = {"+": "A10", "-": "A11"}       # 100uF / 35V, lying flat, body pointing out past the edge
-MOTOR = {"1": "B12", "2": "B13", "3": "B14", "4": "B15"}   # JST-XH 4: black, green, red, blue
-PWR = {"+24V": "C10", "0V": "C11"}  # wires from the DC jack
-R3 = {"1": "B4", "2": "B8"}         # 330R, lying along column B: D10 strip -> LED wire
-PANEL = {"LED+": "A8", "LED-": "A2", "BTN": "B2"}   # wires to the panel LED and RESET button
+R1 = {"1": "J11", "2": "J20"}        # 1k, lying along column J: D4 strip -> USART strip
+R2 = {"1": "I15", "2": "I16"}        # 10k, standing: 3.3V bus -> EN
+C1 = {"+": "A16", "-": "A17"}       # 100uF / 35V, lying flat, body pointing out past the edge
+MOTOR = {"1": "B18", "2": "B19", "3": "B20", "4": "B21"}   # JST-XH 4: black, green, red, blue
+PWR = {"+24V": "C16", "0V": "C17"}  # wires from the DC jack
+R3 = {"1": "B10", "2": "B14"}         # 330R, lying along column B: D10 strip -> LED wire
+PANEL = {"LED+": "A14", "LED-": "A8", "BTN": "B8"}   # wires to the panel LED and RESET button
 # (the RESET button's other wire goes straight to the EN pad under the XIAO, not to the board)
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
@@ -66,17 +68,17 @@ COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": M
 # (from, to, colour, what, side, drawing path through the gaps [(x, row)])
 # -----------------------------------------------------------------------------
 WIRES = [
-    ("E9", "F9", "#e08a00", "3.3V bus: join both halves of row 9", "top", []),
-    ("C3", "C9", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", []),
-    ("B9", "B16", "#e08a00", "3.3V bus -> VDD", "bottom", [(0.5, 9.5), (0.5, 15.5)]),
-    ("J2", "H10", "#7a7a7a", "D1 -> EN", "bottom", [(10.5, 2.5), (10.5, 9.5)]),
-    ("F3", "F16", "#1f6fd1", "D2 -> STEP", "bottom", [(6.5, 3.5), (6.5, 15.5)]),
-    ("I4", "I17", "#1f6fd1", "D3 -> DIR", "bottom", [(9.5, 4.5), (9.5, 16.5)]),
-    ("I6", "H14", "#7b3fb8", "D5 -> USART", "bottom", [(8.5, 6.5), (8.5, 13.5)]),
-    ("E11", "F11", "#222222", "MS1 -> GND (across the channel)", "top", []),
-    ("I12", "I11", "#222222", "MS2 -> MS1 / GND", "bottom", []),
-    ("B11", "B17", "#222222", "power GND <-> logic GND", "bottom", [(1.5, 11.5), (1.5, 16.5)]),
-    ("C2", "C17", "#222222", "XIAO GND -> GND", "bottom", [(2.5, 2.5), (2.5, 16.5)]),
+    ("E15", "F15", "#e08a00", "3.3V bus: join both halves of row 15", "top", []),
+    ("C9", "C15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", []),
+    ("B15", "B22", "#e08a00", "3.3V bus -> VDD", "bottom", [(0.5, 15.5), (0.5, 21.5)]),
+    ("J8", "H16", "#7a7a7a", "D1 -> EN", "bottom", [(10.5, 8.5), (10.5, 15.5)]),
+    ("F9", "F22", "#1f6fd1", "D2 -> STEP", "bottom", [(6.5, 9.5), (6.5, 21.5)]),
+    ("I10", "I23", "#1f6fd1", "D3 -> DIR", "bottom", [(9.5, 10.5), (9.5, 22.5)]),
+    ("I12", "H20", "#7b3fb8", "D5 -> USART", "bottom", [(8.5, 12.5), (8.5, 19.5)]),
+    ("E17", "F17", "#222222", "MS1 -> GND (across the channel)", "top", []),
+    ("I18", "I17", "#222222", "MS2 -> MS1 / GND", "bottom", []),
+    ("B17", "B23", "#222222", "power GND <-> logic GND", "bottom", [(1.5, 17.5), (1.5, 22.5)]),
+    ("C8", "C23", "#222222", "XIAO GND -> GND", "bottom", [(2.5, 8.5), (2.5, 22.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -163,7 +165,7 @@ def xy(h: str, mirror: bool) -> tuple[float, float]:
 
 
 def draw(mirror: bool, path: Path, title: str):
-    fig, ax = plt.subplots(figsize=(6.6, 11), dpi=130)
+    fig, ax = plt.subplots(figsize=(7.4, 12.5), dpi=130)
     mx = (BOARD_W / PITCH - X_MAX) / 2
     my = (BOARD_H / PITCH - (ROWS - 1)) / 2
     ax.add_patch(FancyBboxPatch((-mx, 1 - my), X_MAX + 2 * mx, ROWS - 1 + 2 * my,
@@ -181,6 +183,17 @@ def draw(mirror: bool, path: Path, title: str):
             ax.add_patch(Circle((x, r), 0.2, fc="#d9a441", ec="none", zorder=2))
         ax.text(-mx - 0.55 if not mirror else X_MAX + mx + 0.55, r, str(r), ha="center",
                 va="center", fontsize=6.5, color="#333")
+    for rail_x in (-3.2, -2.2, X_MAX + 2.2, X_MAX + 3.2):      # power rails - not used
+        x = X_MAX - rail_x if mirror else rail_x
+        ax.plot([x, x], [1, ROWS], color="#6b5a3a", lw=3, alpha=0.35, zorder=1)
+        for r in range(1, ROWS + 1):
+            ax.add_patch(Circle((x, r), 0.16, fc="#8a7650", ec="none", zorder=2))
+    ax.text(X_MAX - (-2.7) if mirror else -2.7, ROWS + my - 0.2, "rails\n(unused)",
+            ha="center", va="top", fontsize=4.5, color="#bbb")
+    ch = X_MAX - (COL_X["E"] + COL_X["F"]) / 2 if mirror else (COL_X["E"] + COL_X["F"]) / 2
+    mid = (1 + ROWS) / 2
+    for dy in (-MOUNT_DY / 2 / PITCH, MOUNT_DY / 2 / PITCH):
+        ax.add_patch(Circle((ch, mid + dy), 0.6, fc="#1d1f22", ec="#d9a441", lw=1.5, zorder=3))
     for c in COLS:
         x, _ = xy(f"{c}1", mirror)
         ax.text(x, 1 - my - 0.7, c, ha="center", va="center", fontsize=8, fontweight="bold")
@@ -195,50 +208,52 @@ def draw(mirror: bool, path: Path, title: str):
     if not mirror:
         # XIAO: 21 x 17.5 mm across the channel, USB-C over row 1
         cx = (COL_X["D"] + COL_X["H"]) / 2
-        ax.add_patch(Rectangle((cx - 3.44, 0.87), 6.88, 8.26, fc="#2b2f36", ec="#000",
+        ax.add_patch(Rectangle((cx - 3.44, 0.87 + DY), 6.88, 8.26, fc="#2b2f36", ec="#000",
                                lw=1, alpha=0.9, zorder=5))
-        ax.add_patch(Rectangle((cx - 0.9, 0.2), 1.8, 0.9, fc="#c3c8ce", ec="#555", zorder=6))
-        ax.text(cx, 4.2, "XIAO\nESP32-C3\n↓ USB-C", ha="center", va="center", color="white",
+        ax.add_patch(Rectangle((cx - 0.9, 0.2 + DY), 1.8, 0.9, fc="#c3c8ce", ec="#555", zorder=6))
+        ax.text(cx, 4.2 + DY, "XIAO\nESP32-C3\n↓ USB-C", ha="center", va="center", color="white",
                 fontsize=7, zorder=7)
         # TMC2209: 15.3 x 20.3 mm across the channel, pot towards the XIAO
         tx = (COL_X["D"] + COL_X["G"]) / 2
-        ax.add_patch(Rectangle((tx - 3.01, 9.5), 6.02, 8.0, fc="#1b1b1b", ec="#000", lw=1,
+        ax.add_patch(Rectangle((tx - 3.01, 9.5 + DY), 6.02, 8.0, fc="#1b1b1b", ec="#000", lw=1,
                                alpha=0.9, zorder=5))
-        ax.add_patch(Circle((tx - 1.0, 10.3), 0.45, fc="#c7c7c7", zorder=6))
-        ax.text(tx, 14.2, "TMC2209\nheatsink up", ha="center", va="center", color="white",
+        ax.add_patch(Circle((tx - 1.0, 10.3 + DY), 0.45, fc="#c7c7c7", zorder=6))
+        ax.text(tx, 14.2 + DY, "TMC2209\nheatsink up", ha="center", va="center", color="white",
                 fontsize=7, zorder=7)
         # R1 along column J, R2 standing, C1 lying flat past the edge, JST, 24V wires
         (x1, y1), (x2, y2) = xy(R1["1"], False), xy(R1["2"], False)
         ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
-        ax.add_patch(FancyBboxPatch((x1 - 0.3, 8.2), 0.6, 2.6, boxstyle="round,pad=0.02",
+        ax.add_patch(FancyBboxPatch((x1 - 0.3, 8.2 + DY), 0.6, 2.6, boxstyle="round,pad=0.02",
                                     fc="#d8c7a0", ec="#555", zorder=7))
-        ax.text(x1 + 0.75, 9.5, "R1 1kΩ", rotation=90, fontsize=5.5, va="center", zorder=7)
+        ax.text(x1 + 0.75, 9.5 + DY, "R1 1kΩ", rotation=90, fontsize=5.5, va="center", zorder=7)
         rx, _ = xy(R2["1"], False)
-        ax.add_patch(FancyBboxPatch((rx - 0.35, 9.1), 0.7, 0.8, boxstyle="round,pad=0.02",
+        ax.add_patch(FancyBboxPatch((rx - 0.35, 9.1 + DY), 0.7, 0.8, boxstyle="round,pad=0.02",
                                     fc="#9fc0e8", ec="#555", zorder=7))
-        ax.text(rx + 0.2, 8.35, "R2 10kΩ\n(standing)", fontsize=4.8, ha="center", zorder=7)
-        ax.add_patch(Rectangle((-mx - 3.0, 9.9), 3.0, 1.2, fc="#27303b", ec="#111", zorder=6))
-        ax.plot([-mx, 0], [10, 10], color="#999", lw=1, zorder=6)
-        ax.plot([-mx, 0], [11, 11], color="#999", lw=1, zorder=6)
-        ax.text(-mx - 1.5, 10.5, "C1 100µF", color="white", fontsize=4.6, ha="center",
+        ax.text(rx + 0.2, 8.35 + DY, "R2 10kΩ\n(standing)", fontsize=4.8, ha="center", zorder=7)
+        ax.add_patch(Rectangle((-3.4, 9.9 + DY), 3.0, 1.2, fc="#27303b", ec="#111", zorder=6))
+        ax.plot([-0.4, 0], [10 + DY, 10 + DY], color="#999", lw=1, zorder=6)
+        ax.plot([-0.4, 0], [11 + DY, 11 + DY], color="#999", lw=1, zorder=6)
+        ax.text(-1.9, 10.5 + DY, "C1 100µF", color="white", fontsize=4.6, ha="center",
                 va="center", zorder=7)
-        ax.text(-mx - 0.3, 9.35, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
-        bx, _ = xy("B12", False)
-        ax.add_patch(Rectangle((bx - 1.13, 11.57), 2.26, 3.86, fc="#f4f1e6", ec="#777",
+        ax.text(-0.5, 9.35 + DY, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
+        bx, _ = xy(MOTOR["1"], False)
+        ax.add_patch(Rectangle((bx - 1.13, 11.57 + DY), 2.26, 3.86, fc="#f4f1e6", ec="#777",
                                alpha=0.9, zorder=6))
-        for h, t in (("B12", "1 blk"), ("B13", "2 grn"), ("B14", "3 red"), ("B15", "4 blu")):
+        for h, t in ((MOTOR["1"], "1 blk"), (MOTOR["2"], "2 grn"), (MOTOR["3"], "3 red"),
+                     (MOTOR["4"], "4 blu")):
             pin_dot(h, t, "#f4f1e6")
         (x1, y1), (x2, y2) = xy(R3["1"], False), xy(R3["2"], False)
         ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
-        ax.add_patch(FancyBboxPatch((x1 - 0.3, 5.1), 0.6, 1.8, boxstyle="round,pad=0.02",
+        ax.add_patch(FancyBboxPatch((x1 - 0.3, 5.1 + DY), 0.6, 1.8, boxstyle="round,pad=0.02",
                                     fc="#e8b4b4", ec="#555", zorder=7))
-        ax.text(x1 - 0.75, 6.0, "R3 330Ω", rotation=90, fontsize=5.3, va="center", zorder=7)
-        for h, t, col in (("A8", "LED+", "#2a9d3a"), ("A2", "LED−", "#222"), ("B2", "RESET", "#555")):
+        ax.text(x1 - 0.75, 6.0 + DY, "R3 330Ω", rotation=90, fontsize=5.3, va="center", zorder=7)
+        for h, t, col in ((PANEL["LED+"], "LED+", "#2a9d3a"), (PANEL["LED-"], "LED−", "#222"),
+                          (PANEL["BTN"], "RESET", "#555")):
             x, y = xy(h, False)
             ax.plot([x, -mx - 1.6], [y, y + (0.35 if t == "RESET" else 0)], color=col, lw=1.8, zorder=6)
             ax.text(-mx - 1.7, y + (0.35 if t == "RESET" else 0), t, fontsize=5, ha="right",
                     va="center", color=col, fontweight="bold", zorder=9)
-        for h, t, col in (("C10", "+24V", "#d62d20"), ("C11", "0V", "#222")):
+        for h, t, col in ((PWR["+24V"], "+24V", "#d62d20"), (PWR["0V"], "0V", "#222")):
             x, y = xy(h, False)
             ax.add_patch(Circle((x, y), 0.3, fc=col, zorder=8))
             ax.text(x + 0.15, y + 0.52, t, fontsize=5, color=col, fontweight="bold", zorder=9)
@@ -287,7 +302,7 @@ def main():
           if not problems else "")
     for p in problems:
         print("  PROBLEM:", p)
-    draw(False, HERE / "top.png", "TOP (components) — row 1 / USB-C at the bottom")
+    draw(False, HERE / "top.png", "TOP (components) — row 1 at the bottom, USB-C looks down")
     draw(True, HERE / "bottom.png", "BOTTOM (solder side) — mirrored left-right")
     print("wrote", HERE / "top.png", "and", HERE / "bottom.png")
     return 1 if problems else 0

@@ -43,7 +43,7 @@ SBS_PetriPlater/
 ├── PetriPlatter.bat               double-click to start the GUI (development PC)
 ├── build.bat                      builds the customer package into dist\PetriPlatter
 ├── enclosure/                     3D-printed box: FreeCAD script, STL, STEP, previews
-├── perfboard/                     soldered board: layout, wiring list, top/bottom drawings
+├── perfboard/                     controller board: layout + check, README generator, drawings
 ├── requirements.txt               Python packages
 ├── firmware/
 │   └── PetriPlatter/
@@ -62,7 +62,7 @@ SBS_PetriPlater/
 ## חומרה
 
 הפירוט המלא, רגל אחר רגל, עם שרטוטים ובדיקות: **[WIRING.md](WIRING.md)**.
-הקופסה המודפסת (SBS), חלקים, הדפסה והרכבה: **[enclosure/README.md](enclosure/README.md)**.
+הקופסה המודפסת (130 × 96, עם פאנל חיבורים), חלקים, הדפסה והרכבה: **[enclosure/README.md](enclosure/README.md)**.
 לוח ההלחמה, סידור רכיבים וחיבורים: **[perfboard/README.md](perfboard/README.md)**.
 
 ### רכיבים
