@@ -8,7 +8,7 @@ rem Copy the whole dist\PetriTurn folder to the customer PC. Python is not neede
 cd /d "%~dp0"
 rem PyInstaller's work folder can end up read-only, and then --clean fails: remove it first.
 if exist build (attrib -r build\* /s /d >nul & rmdir /s /q build)
-set PYI=.venv\Scripts\pyinstaller --noconfirm --clean --onefile --distpath dist\PetriTurn --workpath build --specpath build
+set PYI=.venv\Scripts\python -m PyInstaller --noconfirm --clean --onefile --distpath dist\PetriTurn --workpath build --specpath build
 
 %PYI% --name petriturn --icon ..\host\assets\app.ico host\petriturn.py || goto :fail
 %PYI% --windowed --name petriturn_gui --icon ..\host\assets\app.ico --add-data "..\host\assets;assets" host\petriturn_gui.py || goto :fail
