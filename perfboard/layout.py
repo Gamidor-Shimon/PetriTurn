@@ -41,9 +41,10 @@ def hole(h: str) -> tuple[str, int]:
 # -----------------------------------------------------------------------------
 # Components: pin -> hole
 # -----------------------------------------------------------------------------
-XIAO = {  # 2 x 7 female headers across the channel; USB-C towards row 1 (the USB wall)
-    "5V": "D7", "GND": "D8", "3V3": "D9", "D10": "D10", "D9": "D11", "D8": "D12", "D7": "D13",
-    "D0": "H7", "D1": "H8", "D2": "H9", "D3": "H10", "D4": "H11", "D5": "H12", "D6": "H13",
+XIAO = {  # 2 x 7 female headers across the channel; parts side up, USB-C towards row 1.
+    # Measured on the board: the XIAO's GND (USB-C shell) is in column H, row 8.
+    "D0": "D7", "D1": "D8", "D2": "D9", "D3": "D10", "D4": "D11", "D5": "D12", "D6": "D13",
+    "5V": "H7", "GND": "H8", "3V3": "H9", "D10": "H10", "D9": "H11", "D8": "H12", "D7": "H13",
 }
 TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO
     "EN": "G16", "MS1": "G17", "MS2": "G18", "PDN": "G19", "USART": "G20", "CLK": "G21",
@@ -51,13 +52,13 @@ TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towar
     "VM": "D16", "GND_P": "D17", "A2": "D18", "A1": "D19", "B1": "D20", "B2": "D21",
     "VDD": "D22", "GND_L": "D23",
 }
-R1 = {"1": "J11", "2": "J20"}        # 1k, lying along column J: D4 strip -> USART strip
+R1 = {"1": "A11", "2": "A12"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
 R2 = {"1": "I15", "2": "I16"}        # 10k, standing: 3.3V bus -> EN
 C1 = {"+": "A16", "-": "A17"}       # 100uF / 35V, lying flat, body pointing out past the edge
 MOTOR = {"1": "B18", "2": "B19", "3": "B20", "4": "B21"}   # JST-XH 4: black, green, red, blue
 PWR = {"+24V": "C16", "0V": "C17"}  # wires from the DC jack
-R3 = {"1": "B10", "2": "B14"}         # 330R, lying along column B: D10 strip -> LED wire
-PANEL = {"LED+": "A14", "LED-": "A8", "BTN": "B8"}   # wires to the panel LED and RESET button
+R3 = {"1": "J10", "2": "J14"}         # 330R, lying along column J: D10 strip -> LED wire
+PANEL = {"LED+": "I14", "LED-": "J17", "BTN": "J8"}   # wires to the panel LED and RESET button
 # (the RESET button's other wire goes straight to the EN pad under the XIAO, not to the board)
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
@@ -69,16 +70,16 @@ COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": M
 # -----------------------------------------------------------------------------
 WIRES = [
     ("E15", "F15", "#e08a00", "3.3V bus: join both halves of row 15", "top", []),
-    ("C9", "C15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", []),
+    ("J9", "J15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", [(11.5, 9.5), (11.5, 14.5)]),
     ("B15", "B22", "#e08a00", "3.3V bus -> VDD", "bottom", [(0.5, 15.5), (0.5, 21.5)]),
-    ("J8", "H16", "#7a7a7a", "D1 -> EN", "bottom", [(10.5, 8.5), (10.5, 15.5)]),
-    ("F9", "F22", "#1f6fd1", "D2 -> STEP", "bottom", [(6.5, 9.5), (6.5, 21.5)]),
-    ("I10", "I23", "#1f6fd1", "D3 -> DIR", "bottom", [(9.5, 10.5), (9.5, 22.5)]),
-    ("I12", "H20", "#7b3fb8", "D5 -> USART", "bottom", [(8.5, 12.5), (8.5, 19.5)]),
+    ("E8", "H16", "#7a7a7a", "D1 -> EN", "bottom", [(5.5, 8.5), (5.5, 15.5)]),
+    ("E9", "F22", "#1f6fd1", "D2 -> STEP", "bottom", [(5.0, 9.5), (5.0, 21.5)]),
+    ("E10", "I23", "#1f6fd1", "D3 -> DIR", "bottom", [(4.5, 10.5), (4.5, 22.5), (9.5, 22.5)]),
+    ("E12", "H20", "#7b3fb8", "D5 -> USART", "bottom", [(6.0, 12.5), (6.0, 19.5)]),
     ("E17", "F17", "#222222", "MS1 -> GND (across the channel)", "top", []),
     ("I18", "I17", "#222222", "MS2 -> MS1 / GND", "bottom", []),
     ("B17", "B23", "#222222", "power GND <-> logic GND", "bottom", [(1.5, 17.5), (1.5, 22.5)]),
-    ("C8", "C23", "#222222", "XIAO GND -> GND", "bottom", [(2.5, 8.5), (2.5, 22.5)]),
+    ("I8", "H17", "#222222", "XIAO GND -> GND", "bottom", [(10.5, 8.5), (10.5, 16.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -220,16 +221,22 @@ def draw(mirror: bool, path: Path, title: str):
         ax.add_patch(Circle((tx - 1.0, 10.3 + DY), 0.45, fc="#c7c7c7", zorder=6))
         ax.text(tx, 14.2 + DY, "TMC2209\nheatsink up", ha="center", va="center", color="white",
                 fontsize=7, zorder=7)
-        # R1 along column J, R2 standing, C1 lying flat past the edge, JST, 24V wires
-        (x1, y1), (x2, y2) = xy(R1["1"], False), xy(R1["2"], False)
-        ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
-        ax.add_patch(FancyBboxPatch((x1 - 0.3, 8.2 + DY), 0.6, 2.6, boxstyle="round,pad=0.02",
-                                    fc="#d8c7a0", ec="#555", zorder=7))
-        ax.text(x1 + 0.75, 9.5 + DY, "R1 1kΩ", rotation=90, fontsize=5.5, va="center", zorder=7)
-        rx, _ = xy(R2["1"], False)
-        ax.add_patch(FancyBboxPatch((rx - 0.35, 9.1 + DY), 0.7, 0.8, boxstyle="round,pad=0.02",
-                                    fc="#9fc0e8", ec="#555", zorder=7))
-        ax.text(rx + 0.2, 8.35 + DY, "R2 10kΩ\n(standing)", fontsize=4.8, ha="center", zorder=7)
+        # resistors: lying ones drawn between their holes, standing ones as a short body
+        for pm, name, fc in ((R1, "R1 1kΩ", "#d8c7a0"), (R2, "R2 10kΩ", "#9fc0e8"),
+                             (R3, "R3 330Ω", "#e8b4b4")):
+            (x1, y1), (x2, y2) = xy(pm["1"], False), xy(pm["2"], False)
+            ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
+            lo, hi = min(y1, y2), max(y1, y2)
+            if hi - lo > 1:
+                mid = (lo + hi) / 2
+                ax.add_patch(FancyBboxPatch((x1 - 0.3, mid - 0.9), 0.6, 1.8, boxstyle="round,pad=0.02",
+                                            fc=fc, ec="#555", zorder=7))
+                ax.text(x1 + 0.75, mid, name, rotation=90, fontsize=5.3, va="center", zorder=7)
+            else:
+                ax.add_patch(FancyBboxPatch((x1 - 0.35, lo + 0.1), 0.7, 0.8, boxstyle="round,pad=0.02",
+                                            fc=fc, ec="#555", zorder=7))
+                ax.text(x1 - 0.6, lo + 0.5, name + " (standing)", fontsize=4.8, ha="right",
+                        va="center", zorder=7)
         ax.add_patch(Rectangle((-3.4, 9.9 + DY), 3.0, 1.2, fc="#27303b", ec="#111", zorder=6))
         ax.plot([-0.4, 0], [10 + DY, 10 + DY], color="#999", lw=1, zorder=6)
         ax.plot([-0.4, 0], [11 + DY, 11 + DY], color="#999", lw=1, zorder=6)
@@ -242,16 +249,11 @@ def draw(mirror: bool, path: Path, title: str):
         for h, t in ((MOTOR["1"], "1 blk"), (MOTOR["2"], "2 grn"), (MOTOR["3"], "3 red"),
                      (MOTOR["4"], "4 blu")):
             pin_dot(h, t, "#f4f1e6")
-        (x1, y1), (x2, y2) = xy(R3["1"], False), xy(R3["2"], False)
-        ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
-        ax.add_patch(FancyBboxPatch((x1 - 0.3, 5.1 + DY), 0.6, 1.8, boxstyle="round,pad=0.02",
-                                    fc="#e8b4b4", ec="#555", zorder=7))
-        ax.text(x1 - 0.75, 6.0 + DY, "R3 330Ω", rotation=90, fontsize=5.3, va="center", zorder=7)
         for h, t, col in ((PANEL["LED+"], "LED+", "#2a9d3a"), (PANEL["LED-"], "LED−", "#222"),
                           (PANEL["BTN"], "RESET", "#555")):
             x, y = xy(h, False)
-            ax.plot([x, -mx - 1.6], [y, y + (0.35 if t == "RESET" else 0)], color=col, lw=1.8, zorder=6)
-            ax.text(-mx - 1.7, y + (0.35 if t == "RESET" else 0), t, fontsize=5, ha="right",
+            ax.plot([x, X_MAX + mx + 0.6], [y, y], color=col, lw=1.8, zorder=6)
+            ax.text(X_MAX + mx + 0.7, y, t, fontsize=5, ha="left",
                     va="center", color=col, fontweight="bold", zorder=9)
         for h, t, col in ((PWR["+24V"], "+24V", "#d62d20"), (PWR["0V"], "0V", "#222")):
             x, y = xy(h, False)
@@ -286,7 +288,7 @@ def draw(mirror: bool, path: Path, title: str):
                 ax.text(x, y - 0.5, lab, ha="center", va="center", fontsize=4.3, color="white",
                         zorder=9)
 
-    ax.set_xlim(-mx - 3.6, X_MAX + mx + 1.4)
+    ax.set_xlim(-mx - 3.6, X_MAX + mx + 3.4)
     ax.set_ylim(1 - my - 1.4, ROWS + my + 1.4)
     ax.set_aspect("equal")
     ax.axis("off")
