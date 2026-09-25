@@ -25,6 +25,7 @@ COLOURS = {
     "base": "#c9d0d8", "lid": "#dde2e8", "lid_text": "#e8563f", "hub": "#e8563f",
     "plate": "#e8563f", "motor": "#3b4148", "shaft": "#9aa5b1", "perfboard": "#2f8f4e",
     "board_parts": "#1b2733", "usb-c": "#9aa5b1", "dc_jack": "#1b2733", "dish": "#b8dcf5",
+    "screw": "#e8563f",
 }
 ALPHA = {"dish": 0.35}
 LIGHT = np.array([-0.4, -0.6, 0.7])
@@ -96,7 +97,47 @@ def figure(bodies_list, titles, path, size=(8, 7), **view):
     print("wrote", path)
 
 
+def cylinder_x(x0, x1, y, z, r, n=24) -> np.ndarray:
+    """Triangles of a closed cylinder along X (for the panel screws)."""
+    a = np.linspace(0, 2 * np.pi, n + 1)
+    ring = np.stack([np.cos(a) * r + y, np.sin(a) * r + z], axis=1)
+    tris = []
+    for i in range(n):
+        (y0, z0), (y1, z1) = ring[i], ring[i + 1]
+        tris += [[(x0, y0, z0), (x1, y0, z0), (x1, y1, z1)], [(x0, y0, z0), (x1, y1, z1), (x0, y1, z1)],
+                 [(x0, y, z), (x0, y0, z0), (x0, y1, z1)], [(x1, y, z), (x1, y1, z1), (x1, y0, z0)]]
+    return np.array(tris, dtype=float)
+
+
+def clip_x(tris: np.ndarray, x_min: float) -> np.ndarray:
+    return tris[tris[:, :, 0].min(axis=1) >= x_min]
+
+
+def panel_figure():
+    """The +X connector panel: from outside (screw heads) and from inside (USB flange)."""
+    x_wall = 65.0                                   # FOOT_X / 2 in build_enclosure.py
+    usb_y, usb_z, pitch = -14.0, 17.0, 17.0         # PANEL / USB_PANEL_SCREWS
+    screws = np.concatenate(
+        [np.concatenate([cylinder_x(x_wall, x_wall + 1.6, usb_y + s * pitch / 2, usb_z, 2.8),
+                         cylinder_x(x_wall - 6.0, x_wall, usb_y + s * pitch / 2, usb_z, 1.5)])
+         for s in (-1, 1)])
+    base = read_stl(PARTS / "base.stl")
+    fig = plt.figure(figsize=(16, 7), dpi=110)
+    ax = fig.add_subplot(1, 2, 1, projection="3d")
+    draw(ax, [("base", clip_x(base, x_wall - 12)), ("screw", screws)],
+         "panel from OUTSIDE: 2 x M3 screw heads", elev=15, azim=30)
+    ax = fig.add_subplot(1, 2, 2, projection="3d")
+    inner = [(n, clip_x(t, x_wall - 30)) for n, t in load(["dc_jack"])]
+    draw(ax, [("base", clip_x(base, x_wall - 3.0))] + inner + [("screw", screws)],
+         "panel from INSIDE: USB flange on the wall, screws into its threads", elev=15, azim=150)
+    fig.tight_layout()
+    fig.savefig(OUT / "panel.png", facecolor="white")
+    plt.close(fig)
+    print("wrote", OUT / "panel.png")
+
+
 def main():
+    panel_figure()
     closed = load(["base", "lid", "lid_text", "hub", "plate", "dish", "shaft"])
     inside = load(["base", "motor", "shaft", "perfboard", "board_parts", "usb-c", "dc_jack"])
     figure([closed, inside], ["assembled, with a 90 mm dish", "inside (lid removed)"],
