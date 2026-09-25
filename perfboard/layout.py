@@ -46,19 +46,20 @@ XIAO = {  # 2 x 7 female headers across the channel; parts side up, USB-C toward
     "D0": "D7", "D1": "D8", "D2": "D9", "D3": "D10", "D4": "D11", "D5": "D12", "D6": "D13",
     "5V": "H7", "GND": "H8", "3V3": "H9", "D10": "H10", "D9": "H11", "D8": "H12", "D7": "H13",
 }
-TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO
-    "EN": "G16", "MS1": "G17", "MS2": "G18", "PDN": "G19", "USART": "G20", "CLK": "G21",
-    "STEP": "G22", "DIR": "G23",
-    "VM": "D16", "GND_P": "D17", "A2": "D18", "A1": "D19", "B1": "D20", "B2": "D21",
-    "VDD": "D22", "GND_L": "D23",
+TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO.
+    # Measured on the board: the driver's GND (last pin) is in column G, row 23.
+    "EN": "D16", "MS1": "D17", "MS2": "D18", "PDN": "D19", "USART": "D20", "CLK": "D21",
+    "STEP": "D22", "DIR": "D23",
+    "VM": "G16", "GND_P": "G17", "A2": "G18", "A1": "G19", "B1": "G20", "B2": "G21",
+    "VDD": "G22", "GND_L": "G23",
 }
 R1 = {"1": "A11", "2": "A12"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
-R2 = {"1": "I15", "2": "I16"}        # 10k, standing: 3.3V bus -> EN
-C1 = {"+": "A16", "-": "A17"}       # 100uF / 35V, lying flat, body pointing out past the edge
-MOTOR = {"1": "B18", "2": "B19", "3": "B20", "4": "B21"}   # JST-XH 4: black, green, red, blue
-PWR = {"+24V": "C16", "0V": "C17"}  # wires from the DC jack
+R2 = {"1": "A15", "2": "A16"}        # 10k, standing: 3.3V bus -> EN
+C1 = {"+": "J16", "-": "J17"}       # 100uF / 35V, lying flat over the unused rails
+MOTOR = {"1": "I18", "2": "I19", "3": "I20", "4": "I21"}   # JST-XH 4: black, green, red, blue
+PWR = {"+24V": "H16", "0V": "H17"}  # wires from the DC jack
 R3 = {"1": "J10", "2": "J14"}         # 330R, lying along column J: D10 strip -> LED wire
-PANEL = {"LED+": "I14", "LED-": "J17", "BTN": "J8"}   # wires to the panel LED and RESET button
+PANEL = {"LED+": "I14", "LED-": "J23", "BTN": "J8"}   # wires to the panel LED and RESET button
 # (the RESET button's other wire goes straight to the EN pad under the XIAO, not to the board)
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
@@ -71,15 +72,15 @@ COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": M
 WIRES = [
     ("E15", "F15", "#e08a00", "3.3V bus: join both halves of row 15", "top", []),
     ("J9", "J15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", [(11.5, 9.5), (11.5, 14.5)]),
-    ("B15", "B22", "#e08a00", "3.3V bus -> VDD", "bottom", [(0.5, 15.5), (0.5, 21.5)]),
-    ("E8", "H16", "#7a7a7a", "D1 -> EN", "bottom", [(5.5, 8.5), (5.5, 15.5)]),
-    ("E9", "F22", "#1f6fd1", "D2 -> STEP", "bottom", [(5.0, 9.5), (5.0, 21.5)]),
-    ("E10", "I23", "#1f6fd1", "D3 -> DIR", "bottom", [(4.5, 10.5), (4.5, 22.5), (9.5, 22.5)]),
-    ("E12", "H20", "#7b3fb8", "D5 -> USART", "bottom", [(6.0, 12.5), (6.0, 19.5)]),
+    ("H15", "H22", "#e08a00", "3.3V bus -> VDD", "bottom", [(8.5, 15.5), (8.5, 21.5)]),
+    ("C8", "C16", "#7a7a7a", "D1 -> EN", "bottom", [(2.5, 8.5), (2.5, 15.5)]),
+    ("B9", "B22", "#1f6fd1", "D2 -> STEP", "bottom", [(1.5, 9.5), (1.5, 21.5)]),
+    ("C10", "C23", "#1f6fd1", "D3 -> DIR", "bottom", [(3.5, 10.5), (3.5, 22.5)]),
+    ("E12", "E20", "#7b3fb8", "D5 -> USART", "bottom", [(4.5, 12.5), (4.5, 19.5)]),
     ("E17", "F17", "#222222", "MS1 -> GND (across the channel)", "top", []),
-    ("I18", "I17", "#222222", "MS2 -> MS1 / GND", "bottom", []),
-    ("B17", "B23", "#222222", "power GND <-> logic GND", "bottom", [(1.5, 17.5), (1.5, 22.5)]),
-    ("I8", "H17", "#222222", "XIAO GND -> GND", "bottom", [(10.5, 8.5), (10.5, 16.5)]),
+    ("B17", "B18", "#222222", "MS2 -> MS1 / GND", "bottom", []),
+    ("I17", "I23", "#222222", "power GND <-> logic GND", "bottom", [(9.5, 17.5), (9.5, 22.5)]),
+    ("I8", "H23", "#222222", "XIAO GND -> GND", "bottom", [(10.5, 8.5), (10.5, 23.5), (9.0, 23.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -237,12 +238,16 @@ def draw(mirror: bool, path: Path, title: str):
                                             fc=fc, ec="#555", zorder=7))
                 ax.text(x1 - 0.6, lo + 0.5, name + " (standing)", fontsize=4.8, ha="right",
                         va="center", zorder=7)
-        ax.add_patch(Rectangle((-3.4, 9.9 + DY), 3.0, 1.2, fc="#27303b", ec="#111", zorder=6))
-        ax.plot([-0.4, 0], [10 + DY, 10 + DY], color="#999", lw=1, zorder=6)
-        ax.plot([-0.4, 0], [11 + DY, 11 + DY], color="#999", lw=1, zorder=6)
-        ax.text(-1.9, 10.5 + DY, "C1 100µF", color="white", fontsize=4.6, ha="center",
+        cxp, cyp = xy(C1["+"], False)
+        out = 1 if cxp > X_MAX / 2 else -1                     # lies outwards, over the rails
+        x0 = cxp + out * 0.4
+        ax.add_patch(Rectangle((min(x0, x0 + out * 3.0), cyp - 0.1), 3.0, 1.2, fc="#27303b",
+                               ec="#111", zorder=6))
+        for yy in (cyp, cyp + 1):
+            ax.plot([cxp, x0], [yy, yy], color="#999", lw=1, zorder=6)
+        ax.text(x0 + out * 1.5, cyp + 0.5, "C1 100µF", color="white", fontsize=4.6, ha="center",
                 va="center", zorder=7)
-        ax.text(-0.5, 9.35 + DY, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
+        ax.text(x0 + out * 0.1, cyp - 0.65, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
         bx, _ = xy(MOTOR["1"], False)
         ax.add_patch(Rectangle((bx - 1.13, 11.57 + DY), 2.26, 3.86, fc="#f4f1e6", ec="#777",
                                alpha=0.9, zorder=6))

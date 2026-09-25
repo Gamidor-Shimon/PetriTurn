@@ -107,13 +107,15 @@ for i, (a, b, *_r) in enumerate(L.WIRES, 1):
     for h in (a, b):
         occ[("L" if h[0] in "ABCDE" else "R", int(h[1:]))].append(f"W{i}")
 bus_row = int(L.WIRES[0][0][1:])
-lone = {("R", int(T["PDN"][1:])): "TMC.PDN — **לבד**", ("R", int(T["CLK"][1:])): "TMC.CLK — **לבד**"}
+side_of = lambda h: "L" if h[0] in "ABCDE" else "R"
+lone = {(side_of(T[p]), int(T[p][1:])): f"TMC.{p} — **לבד**" for p in ("PDN", "CLK")}
 first = min(int(h[1:]) for pm in L.COMPONENTS.values() for h in pm.values())
 last = max(int(h[1:]) for pm in L.COMPONENTS.values() for h in pm.values())
 rows = ["| שורה | A–E (שמאל) | F–J (ימין) |", "|---|---|---|",
         f"| 1–{first - 1} | — (**פנוי: מקום למתאם ה-USB**) | — |"]
 for r in range(first, last + 1):
     left = ", ".join(occ[("L", r)]) or "—"
+    left = lone.get(("L", r)) or left
     right = lone.get(("R", r)) or ", ".join(occ[("R", r)]) or "—"
     if r == bus_row:
         left, right = "**פס 3.3V**: " + left, "**פס 3.3V**: " + right
@@ -173,7 +175,7 @@ text = f"""# לוח ההלחמה — PetriTurn
 | רכיב | ערך | מיקום | הערה |
 |---|---|---|---|
 | **XIAO ESP32-C3** | על 2 × 7 שקעים נקבה | עמודה `D`, שורות {rows_of(X, ['D0', 'D6'])}: D0 … D6 · עמודה `H`, שורות {rows_of(X, ['5V', 'D7'])}: 5V, GND, 3V3, D10, D9, D8, D7 | **הרכיבים למעלה, שקע ה-USB-C לכיוון שורה 1.** בדיקה: המתכת של שקע ה-USB-C מצפצפת מול `{free_hole(X['GND'])}` |
-| **TMC2209** (V985) | על 2 × 8 שקעים נקבה | עמודה `D`, שורות {rows_of(T, ['VM', 'GND_L'])}: VM, GND, A2, A1, B1, B2, VDD, GND · עמודה `G`, שורות {rows_of(T, ['EN', 'DIR'])}: EN, MS1, MS2, PDN, USART, CLK, STEP, DIR | **הפוטנציומטר לכיוון ה-XIAO** (שורה {T['EN'][1:]}), צלע קירור למעלה |
+| **TMC2209** (V985) | על 2 × 8 שקעים נקבה | עמודה `D`, שורות {rows_of(T, ['EN', 'DIR'])}: EN, MS1, MS2, PDN, USART, CLK, STEP, DIR · עמודה `G`, שורות {rows_of(T, ['VM', 'GND_L'])}: VM, GND, A2, A1, B1, B2, VDD, GND | **הפוטנציומטר לכיוון ה-XIAO** (שורה {T['EN'][1:]}). בדיקה: `{free_hole(T['GND_L'])}` מצפצף מול GND |
 | **R1** | 1kΩ | `{L.R1['1']}` – `{L.R1['2']}` | **עומד**. מ-D4 לפס של D5, ומשם ל-USART דרך חוט |
 | **R2** | 10kΩ | `{L.R2['1']}` – `{L.R2['2']}` | **עומד** |
 | **R3** | 330Ω | `{L.R3['1']}` – `{L.R3['2']}` | שוכב לאורך עמודה J — נגד ללד |
