@@ -68,7 +68,7 @@ POST_INSET = 3.0                          # post centre from the inner wall corn
 # Rows run along Y (row 1 at -Y), columns across X (see perfboard/).
 PB_X, PB_Y, PB_T = 52.0, 89.0, 1.6
 PB_GAP = 1.0                              # board edge to the -X wall
-PB_MOUNT_DY = 71.5                        # (MEASURE) the 2 mounting holes on the centre line
+PB_MOUNT_DY = 73.5                        # the 2 mounting holes on the centre line (measured)
 PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.6   # M3 self-tapping screws
 PB_PAD_D, PB_PAD_INSET = 5.0, 3.0         # support pads (no screw) under the 4 corners
 PB_ROWS, PB_PITCH = 30, 2.54
@@ -90,7 +90,7 @@ PANEL = [
     ("hole", 10.0, 38.0, 7.0, "RESET"),          # 7 mm push button
 ]
 # The panel USB-C cable's flange sits against the INSIDE of the wall; 2 x M3 screws from outside.
-USB_PANEL_SCREWS = 16.5   # centre distance of the 2 screws (measured)
+USB_PANEL_SCREWS = 17.0   # centre distance of the 2 screws (measured)
 USB_PANEL_SCREW_D = 3.4   # M3 clearance
 USB_FLANGE = (22.0, 10.5, 25.0)   # flange width, body height, depth inside (body 12.5 x 10.5)
 # The plug's plastic overmould stops at the outside of the wall; a shallow pocket lets it in,

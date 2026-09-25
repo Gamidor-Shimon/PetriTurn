@@ -30,7 +30,7 @@ COLS = "ABCDEFGHIJ"
 COL_X = {c: (i if i < 5 else i + GAP - 1) for i, c in enumerate(COLS)}   # A0..E4, F7..J11
 ROWS = 30
 BOARD_W, BOARD_H = 52.0, 89.0
-MOUNT_DY = 71.5          # the board's 2 mounting holes, on the channel line, this far apart
+MOUNT_DY = 73.5          # the board's 2 mounting holes, on the channel line, this far apart
 DY = 6                   # the layout starts 6 rows in (rows 1-6: room for the USB adapter)
 
 
