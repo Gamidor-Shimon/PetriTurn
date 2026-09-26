@@ -56,14 +56,20 @@ TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towar
 R1 = {"1": "A11", "2": "A12"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
 R2 = {"1": "A15", "2": "A16"}        # 10k, standing: 3.3V bus -> EN
 C1 = {"+": "J16", "-": "J17"}       # 100uF / 35V, lying flat over the unused rails
-MOTOR = {"1": "I18", "2": "I19", "3": "I20", "4": "I21"}   # JST-XH 4: black, green, red, blue
-PWR = {"+24V": "H16", "0V": "H17"}  # wires from the DC jack
-R3 = {"1": "J10", "2": "J14"}         # 330R, lying along column J: D10 strip -> LED wire
-PANEL = {"LED+": "I14", "LED-": "J23", "BTN": "J8"}   # wires to the panel LED and RESET button
-# (the RESET button's other wire goes straight to the EN pad under the XIAO, not to the board)
+R3 = {"1": "I10", "2": "I14"}         # 330R, lying along column I: D10 strip -> LED wire
+# Screw terminals, 5.08 mm pitch (a pin on every second row, so each pin has its own strip)
+MOTOR = {"1": "J24", "2": "J26", "3": "J28", "4": "J30"}   # 4 pins (2 + 2): black, green, red, blue
+PWR = {"+24V": "A24", "0V": "A26"}                         # 2 pins: from the panel DC jack
+PANEL = {"RST": "J1", "GND": "J3", "LED+": "J5"}           # 3 pins: panel RESET button and LED
+ENPAD = {"wire": "H1"}   # thin wire from the EN pad under the XIAO -> the RST terminal strip
+TERMINALS = [  # (holes, labels, wire openings face: +1 = out past column J, -1 = towards the middle)
+    ([MOTOR["1"], MOTOR["2"], MOTOR["3"], MOTOR["4"]], ["A2 blk", "A1 grn", "B1 red", "B2 blu"], 1),
+    ([PWR["+24V"], PWR["0V"]], ["+24V", "0V"], 1),
+    ([PANEL["RST"], PANEL["GND"], PANEL["LED+"]], ["RST", "GND", "LED+"], 1),
+]
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
-              "R3": R3, "PANEL": PANEL}
+              "R3": R3, "PANEL": PANEL, "ENPAD": ENPAD}
 
 # -----------------------------------------------------------------------------
 # Wires (insulated). The strips do most of the work; these join the strips that must meet.
@@ -81,6 +87,14 @@ WIRES = [
     ("B17", "B18", "#222222", "MS2 -> MS1 / GND", "bottom", []),
     ("I17", "I23", "#222222", "power GND <-> logic GND", "bottom", [(9.5, 17.5), (9.5, 22.5)]),
     ("I8", "H23", "#222222", "XIAO GND -> GND", "bottom", [(10.5, 8.5), (10.5, 23.5), (9.0, 23.5)]),
+    ("J18", "I24", "#2e7d32", "motor A2 -> terminal", "bottom", [(11.5, 18.5), (11.5, 23.5), (10.0, 23.5)]),
+    ("J19", "I26", "#2e7d32", "motor A1 -> terminal", "bottom", [(11.7, 19.5), (11.7, 25.5), (10.0, 25.5)]),
+    ("J20", "I28", "#2e7d32", "motor B1 -> terminal", "bottom", [(11.9, 20.5), (11.9, 27.5), (10.0, 27.5)]),
+    ("J21", "I30", "#2e7d32", "motor B2 -> terminal", "bottom", [(12.1, 21.5), (12.1, 29.5), (10.0, 29.5)]),
+    ("H16", "C24", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.5, 16.5), (8.5, 23.2), (2.0, 23.2)]),
+    ("H17", "C26", "#222222", "0V: terminal -> GND", "bottom", [(9.0, 17.5), (9.0, 25.5), (2.0, 25.5)]),
+    ("G8", "G3", "#222222", "GND -> panel terminal", "bottom", [(7.5, 7.5), (7.5, 3.5)]),
+    ("J14", "H5", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 13.5), (11.5, 6.5), (9.0, 5.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -100,7 +114,8 @@ EXPECTED = {
     "LED": ["XIAO.D10", "R3.1"],
     "LED anode": ["R3.2", "PANEL.LED+"],
 }
-EXPECTED["GND"] += ["PANEL.LED-", "PANEL.BTN"]
+EXPECTED["GND"] += ["PANEL.GND"]
+EXPECTED["RESET"] = ["PANEL.RST", "ENPAD.wire"]
 NOT_CONNECTED = ["TMC.PDN", "TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V",
                  "XIAO.D9", "XIAO.D8", "XIAO.D7"]
 
@@ -248,22 +263,21 @@ def draw(mirror: bool, path: Path, title: str):
         ax.text(x0 + out * 1.5, cyp + 0.5, "C1 100µF", color="white", fontsize=4.6, ha="center",
                 va="center", zorder=7)
         ax.text(x0 + out * 0.1, cyp - 0.65, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
-        bx, _ = xy(MOTOR["1"], False)
-        ax.add_patch(Rectangle((bx - 1.13, 11.57 + DY), 2.26, 3.86, fc="#f4f1e6", ec="#777",
-                               alpha=0.9, zorder=6))
-        for h, t in ((MOTOR["1"], "1 blk"), (MOTOR["2"], "2 grn"), (MOTOR["3"], "3 red"),
-                     (MOTOR["4"], "4 blu")):
-            pin_dot(h, t, "#f4f1e6")
-        for h, t, col in ((PANEL["LED+"], "LED+", "#2a9d3a"), (PANEL["LED-"], "LED−", "#222"),
-                          (PANEL["BTN"], "RESET", "#555")):
-            x, y = xy(h, False)
-            ax.plot([x, X_MAX + mx + 0.6], [y, y], color=col, lw=1.8, zorder=6)
-            ax.text(X_MAX + mx + 0.7, y, t, fontsize=5, ha="left",
-                    va="center", color=col, fontweight="bold", zorder=9)
-        for h, t, col in ((PWR["+24V"], "+24V", "#d62d20"), (PWR["0V"], "0V", "#222")):
-            x, y = xy(h, False)
-            ax.add_patch(Circle((x, y), 0.3, fc=col, zorder=8))
-            ax.text(x + 0.15, y + 0.52, t, fontsize=5, color=col, fontweight="bold", zorder=9)
+        for holes, labels, face in TERMINALS:
+            pts = [xy(h, False) for h in holes]
+            x = pts[0][0]
+            ys = [p[1] for p in pts]
+            x0 = x - 1.0 if face > 0 else x - 1.8
+            ax.add_patch(Rectangle((x0, min(ys) - 1.0), 2.8, max(ys) - min(ys) + 2.0, fc="#2f6fb0",
+                                   ec="#123", alpha=0.85, zorder=6))
+            for (hx, hy), t in zip(pts, labels):
+                pin_dot(holes[ys.index(hy)], "", "#e6c86e")
+                ax.text(x0 + 1.4, hy + 0.55, t, fontsize=4.6, ha="center", va="center",
+                        fontweight="bold", color="white", zorder=9)
+        ex, ey = xy(ENPAD["wire"], False)
+        ax.plot([ex, ex - 0.6, (COL_X["D"] + COL_X["H"]) / 2], [ey, ey + 1.5, 4.0 + DY],
+                color="#9b59b6", lw=1.2, ls="--", zorder=7.5)
+        ax.text(ex - 0.8, ey + 0.2, "EN pad wire", fontsize=4.5, ha="right", color="#9b59b6", zorder=9)
         for pin, h in XIAO.items():
             pin_dot(h, pin)
         for pin, h in TMC.items():
