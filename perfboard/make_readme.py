@@ -81,7 +81,7 @@ WIRE_HE = {
     "XIAO 3V3 -> 3.3V bus": "3V3 של ה-XIAO ← פס 3.3V", "3.3V bus -> VDD": "פס 3.3V ← VDD של הדרייבר",
     "D1 -> EN": "D1 ← EN", "D2 -> STEP": "D2 ← STEP", "D3 -> DIR": "D3 ← DIR",
     "D5 -> USART": "D5 ← USART", "MS1 -> GND (across the channel)": "MS1 ← GND (מעל התעלה)",
-    "MS2 -> MS1 / GND": "MS2 ← MS1 / GND", "power GND <-> logic GND": "GND ↔ GND של הדרייבר",
+    "MS2 -> MS1 / GND": "MS2 ← MS1 / GND", "PDN <-> USART": "PDN ↔ USART — **התקשורת עוברת דרך PDN**", "power GND <-> logic GND": "GND ↔ GND של הדרייבר",
     "XIAO GND -> GND": "GND של ה-XIAO ← GND",
     "+24V: terminal -> VM": "+24V: מהדק מתח ← VM", "0V: terminal -> GND": "0V: מהדק מתח ← GND",
     "GND -> panel terminal": "GND ← מהדק פאנל", "LED+ -> panel terminal": "לד + ← מהדק פאנל",
@@ -114,7 +114,7 @@ for net, members in L.EXPECTED.items():
     net_list.append("| חור | מה מחובר |\n|---|---|")
     net_list += [f"| `{h}` | {what} |" for h, what in items]
     net_list.append("")
-alone = [f"`{pins['TMC.' + p]}` {p}" for p in ("PDN", "CLK")] + \
+alone = [f"`{pins['TMC.' + p]}` {p}" for p in ("CLK",)] + \
         [f"`{pins['XIAO.' + p]}` {p}" for p in ("D0", "D6", "5V", "D9", "D8", "D7")]
 net_list.append("**רגליים שלא מחוברות לשום דבר** (לבד בפס שלהן): " + ", ".join(alone))
 
@@ -145,7 +145,7 @@ checks = [  # (a, b, expected, what)
     (M["1"], M["2"], "open", "אין קצר בין חוטי המנוע"),
     (M["2"], M["3"], "open", ""), (M["3"], M["4"], "open", ""),
     (PN["RST"], PN["GND"], "open", "RESET לא מקוצר ל-GND"),
-    (T["PDN"], T["USART"], "open", "PDN לבד"),
+    (T["PDN"], T["USART"], "0", "PDN מחובר לקו התקשורת (גשר)"),
     (T["CLK"], T["STEP"], "open", "CLK לבד"),
 ]
 show = {"0": "צפצוף", "open": "**אין צפצוף**", "1k": "≈1kΩ", "10k": "≈10kΩ", "330": "≈330Ω"}
@@ -212,7 +212,7 @@ text = f"""# לוח ההלחמה — PetriTurn
 
 {N.join(wires)}
 
-- W1, W8 **מעל הלוח**, קצרים (לפני שמכניסים את הדרייבר). כל השאר **מתחת ללוח** — לפי `bottom.png` (שם A מימין).
+- W1, W8, W16 **מעל הלוח**, קצרים (לפני שמכניסים את הדרייבר). כל השאר **מתחת ללוח** — לפי `bottom.png` (שם A מימין).
 - חוטים מבודדים בלבד. כל קצה מולחם רק לחור שלו.
 - **חוטי המתח** (W12, W13): חוט עבה יותר, 0.35–0.5 מ"מ².
 - הקצה `I27` (W13) נמצא ליד מהדק המתח — מלחימים אותו **מלמטה**.

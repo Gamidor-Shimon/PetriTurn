@@ -90,6 +90,7 @@ WIRES = [
     ("J26", "I27", "#222222", "0V: terminal -> GND", "bottom", [(11.5, 26.5), (10.5, 26.8)]),
     ("G10", "G2", "#222222", "GND -> panel terminal", "bottom", [(7.5, 9.5), (7.5, 2.5)]),
     ("J12", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 11.5), (11.5, 4.5), (9.0, 3.5)]),
+    ("A22", "A23", "#7b3fb8", "PDN <-> USART", "top", []),
 ]
 
 # -----------------------------------------------------------------------------
@@ -103,14 +104,14 @@ EXPECTED = {
     "STEP": ["XIAO.D2", "TMC.STEP"],
     "DIR": ["XIAO.D3", "TMC.DIR"],
     "TX": ["XIAO.D4", "R1.1"],
-    "USART": ["XIAO.D5", "R1.2", "TMC.USART"],
+    "USART": ["XIAO.D5", "R1.2", "TMC.USART", "TMC.PDN"],   # this driver talks on PDN (tested)
     "A2": ["TMC.A2", "MOTOR.1"], "A1": ["TMC.A1", "MOTOR.2"],
     "B1": ["TMC.B1", "MOTOR.3"], "B2": ["TMC.B2", "MOTOR.4"],
     "LED": ["XIAO.D10", "PANEL.LED+"],   # the panel LED has its own series resistor
 }
 EXPECTED["GND"] += ["PANEL.GND"]
 EXPECTED["RESET"] = ["PANEL.RST", "ENPAD.wire"]
-NOT_CONNECTED = ["TMC.PDN", "TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V",
+NOT_CONNECTED = ["TMC.CLK", "XIAO.D0", "XIAO.D6", "XIAO.5V",
                  "XIAO.D9", "XIAO.D8", "XIAO.D7"]
 
 
