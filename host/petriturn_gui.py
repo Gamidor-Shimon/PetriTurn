@@ -29,12 +29,13 @@ import serial
 from PySide6 import QtGui, QtWidgets
 from PySide6.QtCore import QObject, QPoint, QSettings, Qt, QThread, QTimer, Signal, Slot
 
+from petriturn_log import AuditLog
 from petriturn_link import (DEFAULT_LIMITS, Config, ConfigError, PetriTurnError, PetriTurnLink, Program,
                           Step, list_ports, load_config, save_port)
 from theme import DARK, LIGHT, QSS, Pill, card, hsep, muted
 
 APP_NAME = "PetriTurn Control Center"
-APP_VERSION = "1.0"
+APP_VERSION = "1.1"
 COMPANY = "Gamidor Diagnostics"
 AUTHOR = "Shimon Yeshayahu"
 
@@ -201,9 +202,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._motion_widgets: list[QtWidgets.QWidget] = []      # + driver answering
         self._offline_widgets: list[QtWidgets.QWidget] = []     # only while disconnected
 
-        log_dir = data_dir() / "logs"
-        log_dir.mkdir(exist_ok=True)
-        self.log_path = log_dir / f"petriturn_{datetime.date.today():%Y-%m-%d}.log"
+        # audit log: logs/<date>_gui_001.log next to the programs, never deleted (petriturn_log.py)
+        self.audit = AuditLog("gui", self.cfg.log_max_mb, data_dir() / "logs")
+        self._log_error_shown = False
 
         self._build_ui()
         self._start_worker()
@@ -227,7 +228,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self.poll_status)
         self.poll_timer.start(self.cfg.poll_ms)
-        self.log("gui", f"{APP_NAME} {APP_VERSION} started. Log file: {self.log_path}")
+        self.audit.session_start(f"{APP_NAME} {APP_VERSION}")
+        self.log("gui", f"{APP_NAME} {APP_VERSION} started. Logs: {self.audit.folder}")
         if self.cfg_error:
             self.log("err", f"{self.cfg_error} — running on the default settings")
         else:
@@ -696,7 +698,7 @@ class MainWindow(QtWidgets.QMainWindow):
             b.setToolTip(tip)
             b.clicked.connect(slot)
             bar.addWidget(b)
-        bar.addWidget(muted(f"auto-saved to {self.log_path}"), 1)
+        bar.addWidget(muted(f"auto-saved to {self.audit.folder}"), 1)
         self.console = QtWidgets.QPlainTextEdit()
         self.console.setObjectName("Console")
         self.console.setReadOnly(True)
@@ -742,11 +744,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.console.appendHtml(f'<span style="color:{colour}">{stamp} {prefix} '
                                 f'{html.escape(text)}</span>')
         self.console.verticalScrollBar().setValue(self.console.verticalScrollBar().maximum())
-        try:
-            with open(self.log_path, "a", encoding="utf-8") as fh:
-                fh.write(f"{stamp} [{tag}] {text}\n")
-        except OSError:
-            pass
+        if self.audit.write(tag, text):
+            self._log_error_shown = False
+        elif not self._log_error_shown:        # say it once, not on every line
+            self._log_error_shown = True
+            self.console.appendHtml(f'<span style="color:{CONSOLE_COLOURS["err"]}">{stamp} ✖ '
+                                    f'LOG NOT SAVED — {html.escape(self.audit.error)}</span>')
 
     def copy_console(self):
         QtWidgets.QApplication.clipboard().setText(self.console.toPlainText())

@@ -69,6 +69,11 @@ run_margin = 10
 [gui]
 ; Live status refresh while idle, in milliseconds.
 poll_ms = 1000
+
+[logs]
+; Every action is logged to the "logs" folder next to the programs. Files are never deleted.
+; A new file starts every day, and whenever the current file reaches this size (megabytes).
+max_mb = 5
 """
 
 
@@ -83,6 +88,7 @@ class Config:
     command_timeout: float = SHORT_TIMEOUT_S
     run_margin: float = RUN_MARGIN_S
     poll_ms: int = 1000
+    log_max_mb: float = 5.0
     path: Path | None = None
 
 
@@ -104,7 +110,8 @@ def load_config(path: Path | None = None) -> Config:
     cfg = Config(path=path)
     fields = (("port", "connection", "port", str), ("baudrate", "connection", "baudrate", int),
               ("command_timeout", "timeouts", "command", float),
-              ("run_margin", "timeouts", "run_margin", float), ("poll_ms", "gui", "poll_ms", int))
+              ("run_margin", "timeouts", "run_margin", float), ("poll_ms", "gui", "poll_ms", int),
+              ("log_max_mb", "logs", "max_mb", float))
     for attr, section, key, cast in fields:
         raw = cp.get(section, key, fallback=None)
         if raw is None or not raw.strip():
@@ -233,11 +240,17 @@ class PetriTurnLink:
         self.ser.reset_input_buffer()   # drop stale lines (e.g. boot banner)
         self._cmd_lock = threading.Lock()
         self._write_lock = threading.Lock()
+        self.trace = None   # optional callable(tag, text): every line sent / received, for the log
 
     def close(self) -> None:
         self.ser.close()
 
+    def _trace(self, tag: str, text: str) -> None:
+        if self.trace:
+            self.trace(tag, text)
+
     def _write(self, line: str) -> None:
+        self._trace("tx", line)
         with self._write_lock:
             self.ser.write((line + "\n").encode("utf-8"))
             self.ser.flush()
@@ -258,11 +271,13 @@ class PetriTurnLink:
                 if not raw:
                     continue
                 line = raw.decode("utf-8", errors="replace").strip()
+                self._trace("rx", line)
                 if line == "OK" or line.startswith("OK "):
                     return line[3:]
                 if line.startswith("ERR"):
                     raise PetriTurnError(line[4:] or "UNKNOWN")
                 # anything else (e.g. '# ...' info lines) is ignored
+            self._trace("timeout", f"no reply to {cmd.split()[0]} after {timeout_s:.1f}s")
             raise TimeoutError(f"no reply to {cmd.split()[0]} after {timeout_s:.1f}s")
 
     def send_stop(self) -> None:

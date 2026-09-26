@@ -19,6 +19,8 @@ Options:
     --port COM6                    serial port for this call only (default: petriturn.ini)
 
 Settings (port, baud rate, timeouts) live in petriturn.ini next to this program.
+Every call is logged (command, all serial traffic, result, exit code) to the "logs" folder next
+to this program: logs/<date>_robot_001.log, a new part every day or every [logs] max_mb.
 
 Exit codes:
     0 = OK
@@ -35,19 +37,27 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 
 import serial
 
 from petriturn_link import (BAD_REQUEST_REASONS, ConfigError, PetriTurnError, PetriTurnLink, list_ports,
                           load_config)
+from petriturn_log import DEFAULT_MAX_MB, AuditLog
+
+VERSION = "1.1"
 
 EXIT_OK, EXIT_FAIL, EXIT_BAD_CMD = 0, 1, 2
 
 
 class _Parser(argparse.ArgumentParser):
+    log: AuditLog | None = None
+
     def error(self, message):
         self.print_usage(sys.stderr)
         print(f"ERR {message}", file=sys.stderr)
+        if _Parser.log:
+            _Parser.log.write("error", f"ERR {message}")
         sys.exit(EXIT_BAD_CMD)
 
 
@@ -94,43 +104,66 @@ def execute(link: PetriTurnLink, args) -> str:
     return "OK"
 
 
-def main() -> int:
+def main(log: AuditLog) -> int:
     args = parse_args()
     if args.action == "ports":
-        print("\n".join(list_ports()) or "(no serial ports)")
+        text = "\n".join(list_ports()) or "(no serial ports)"
+        print(text)
+        log.write("result", "ports: " + text.replace("\n", ", "))
         return EXIT_OK
 
     try:
         cfg = load_config()
     except ConfigError as e:
-        print(f"ERR {e}", file=sys.stderr)
-        return EXIT_FAIL
+        return fail(log, f"ERR {e}", EXIT_FAIL)
+    log.max_bytes = int(cfg.log_max_mb * 1024 * 1024)
     port = args.port or cfg.port
     try:
         link = PetriTurnLink.from_config(cfg, port)
     except serial.SerialException as e:
-        print(f"ERR cannot open {port}: {e}", file=sys.stderr)
-        return EXIT_FAIL
+        return fail(log, f"ERR cannot open {port}: {e}", EXIT_FAIL)
+    link.trace = log.write
+    log.write("port", f"{port} opened")
 
     try:
-        print(execute(link, args))
+        out = execute(link, args)
+        print(out)
+        log.write("result", out.replace("\n", " | "))
         return EXIT_OK
     except PetriTurnError as e:
-        print(f"ERR {e.reason}", file=sys.stderr)
-        return EXIT_BAD_CMD if e.reason in BAD_REQUEST_REASONS else EXIT_FAIL
+        return fail(log, f"ERR {e.reason}", EXIT_BAD_CMD if e.reason in BAD_REQUEST_REASONS else EXIT_FAIL)
     except TimeoutError as e:
-        print(f"ERR timeout: {e}", file=sys.stderr)
-        return EXIT_FAIL
+        return fail(log, f"ERR timeout: {e}", EXIT_FAIL)
     except serial.SerialException as e:
-        print(f"ERR port: {e}", file=sys.stderr)
-        return EXIT_FAIL
+        return fail(log, f"ERR port: {e}", EXIT_FAIL)
     except KeyboardInterrupt:
         link.send_stop()
-        print("ERR interrupted, STOP sent", file=sys.stderr)
-        return EXIT_FAIL
+        return fail(log, "ERR interrupted, STOP sent", EXIT_FAIL)
     finally:
         link.close()
 
 
+def fail(log: AuditLog, message: str, code: int) -> int:
+    print(message, file=sys.stderr)
+    log.write("error", message)
+    return code
+
+
+def logged_main() -> int:
+    log = AuditLog("robot", DEFAULT_MAX_MB)
+    _Parser.log = log
+    log.session_start(f"petriturn {VERSION} | command: petriturn {' '.join(sys.argv[1:])}")
+    t0 = time.monotonic()
+    code = EXIT_BAD_CMD
+    try:
+        code = main(log)
+    except SystemExit as e:                 # argparse: bad command line
+        code = e.code if isinstance(e.code, int) else EXIT_BAD_CMD
+    log.write("exit", f"code {code} after {time.monotonic() - t0:.2f} s")
+    if log.error:                           # the call itself still counts; say that it is unlogged
+        print(f"WARN {log.error}", file=sys.stderr)
+    return code
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(logged_main())
