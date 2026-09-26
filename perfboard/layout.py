@@ -56,7 +56,6 @@ TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towar
 R1 = {"1": "A13", "2": "A14"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
 R2 = {"1": "A18", "2": "A19"}        # 10k, standing: 3.3V bus -> EN
 C1 = {"+": "H28", "-": "H27"}       # 100uF / 35V, lying along column H towards row 30 (clear of the mounting screw)
-R3 = {"1": "I12", "2": "I16"}         # 330R, lying along column I: D10 strip -> LED wire
 # Screw terminals, 2.5 mm pitch (one pin per row, each pin on its own strip)
 MOTOR = {"1": "J21", "2": "J22", "3": "J23", "4": "J24"}   # 4 pins, on the driver's A2..B2 strips
 PWR = {"+24V": "J28", "0V": "J27"}                         # 2 pins: from the panel DC jack
@@ -69,7 +68,7 @@ TERMINALS = [  # (holes, labels)
 ]
 
 COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": MOTOR, "PWR": PWR,
-              "R3": R3, "PANEL": PANEL, "ENPAD": ENPAD}
+              "PANEL": PANEL, "ENPAD": ENPAD}
 
 # -----------------------------------------------------------------------------
 # Wires (insulated). The strips do most of the work; these join the strips that must meet.
@@ -90,7 +89,7 @@ WIRES = [
     ("H19", "G28", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.7, 19.5), (8.7, 27.5), (8.0, 27.5)]),
     ("J26", "I27", "#222222", "0V: terminal -> GND", "bottom", [(11.5, 26.5), (10.5, 26.8)]),
     ("G10", "G2", "#222222", "GND -> panel terminal", "bottom", [(7.5, 9.5), (7.5, 2.5)]),
-    ("J16", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 15.5), (11.5, 4.5), (9.0, 3.5)]),
+    ("J12", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 11.5), (11.5, 4.5), (9.0, 3.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -107,8 +106,7 @@ EXPECTED = {
     "USART": ["XIAO.D5", "R1.2", "TMC.USART"],
     "A2": ["TMC.A2", "MOTOR.1"], "A1": ["TMC.A1", "MOTOR.2"],
     "B1": ["TMC.B1", "MOTOR.3"], "B2": ["TMC.B2", "MOTOR.4"],
-    "LED": ["XIAO.D10", "R3.1"],
-    "LED anode": ["R3.2", "PANEL.LED+"],
+    "LED": ["XIAO.D10", "PANEL.LED+"],   # the panel LED has its own series resistor
 }
 EXPECTED["GND"] += ["PANEL.GND"]
 EXPECTED["RESET"] = ["PANEL.RST", "ENPAD.wire"]
@@ -236,7 +234,7 @@ def draw(mirror: bool, path: Path, title: str):
         ax.text(tx, tc, "TMC2209", ha="center", va="center", color="white", fontsize=7, zorder=7)
         # resistors: lying ones drawn between their holes, standing ones as a short body
         for pm, name, fc in ((R1, "R1 1kΩ", "#d8c7a0"), (R2, "R2 10kΩ", "#9fc0e8"),
-                             (R3, "R3 330Ω", "#e8b4b4")):
+                             ):
             (x1, y1), (x2, y2) = xy(pm["1"], False), xy(pm["2"], False)
             ax.plot([x1, x2], [y1, y2], color="#888", lw=1.2, zorder=6)
             lo, hi = min(y1, y2), max(y1, y2)
