@@ -72,14 +72,14 @@ PB_MOUNT_DY = 73.5                        # the 2 mounting holes on the centre l
 PB_STANDOFF_H, PB_STANDOFF_D, PB_PILOT_D = 6.0, 6.0, 2.6   # M3 self-tapping screws
 PB_PAD_D, PB_PAD_INSET = 5.0, 3.0         # support pads (no screw) under the 4 corners
 PB_ROWS, PB_PITCH = 30, 2.54
-XIAO_ROW = 10                             # centre row of the XIAO (rows 7..13, USB towards row 1)
+XIAO_ROW = 12                             # centre row of the XIAO (rows 9..15, USB towards row 1)
 PB_PARTS_H = 22.0         # tallest part on the board (TMC2209 + heatsink on female headers)
 
 # The XIAO's USB-C (it straddles the board channel, USB towards -Y). A panel-mount USB-C
 # extension cable runs from it to the connector panel; a 90 deg (up-angle) USB-C adapter
 # on the XIAO turns the cable upwards - there are ~20 mm in front of the XIAO for it.
 USB_Z = 21.3              # centre height of the XIAO's USB-C (female headers 8.5 mm)
-PLUG_ZONE = 14.0          # room the 90 deg adapter takes in front of the XIAO (-Y)
+PLUG_ZONE = 14.0          # room the 90 deg adapter takes in front of the XIAO (towards row 1, +Y)
 
 # Connector panel: the +X end wall. Seen from outside: y to the right, z up.
 # (kind, y, z, size, label). size: hole diameter, or (width, height) for the USB cut-out
@@ -148,8 +148,9 @@ USB_X = PB_CX + PB_PITCH / 2                      # XIAO straddles the channel: 
 
 
 def pb_row(r):
-    """y of board row r (row 1 at the -Y end)."""
-    return PB_Y0 + (PB_Y - (PB_ROWS - 1) * PB_PITCH) / 2 + (r - 1) * PB_PITCH
+    """y of board row r. Row 1 at the +Y end, so that (seen from above, as printed on the board)
+    column A is at -X (vent wall) and column J with the screw terminals at +X (towards the motor)."""
+    return PB_Y0 + (PB_Y - (PB_ROWS - 1) * PB_PITCH) / 2 + (PB_ROWS - r) * PB_PITCH
 
 
 # =============================================================================
@@ -375,8 +376,8 @@ def reference_models():
     parts = box(PB_X0 + 1, PB_X0 + PB_X - 1, PB_Y0 + 1, PB_Y0 + PB_Y - 1,
                 PB_Z0 + PB_T, PB_Z0 + PB_T + PB_PARTS_H)
     # the 90 deg USB-C adapter in front of the XIAO (towards -Y), cable going up
-    usb_edge = pb_row(XIAO_ROW) - 10.5 - 0.8           # XIAO half length + receptacle
-    usb = box(USB_X - 7, USB_X + 7, usb_edge - PLUG_ZONE, usb_edge, USB_Z - 4, USB_Z + 15)
+    usb_edge = pb_row(XIAO_ROW) + 10.5 + 0.8           # XIAO half length + receptacle
+    usb = box(USB_X - 7, USB_X + 7, usb_edge, usb_edge + PLUG_ZONE, USB_Z - 4, USB_Z + 15)
     panel = []
     for kind, y, z, size, label in PANEL:
         d = PANEL_DEPTH[kind]

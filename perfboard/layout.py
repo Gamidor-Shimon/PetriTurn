@@ -8,9 +8,10 @@ Run (from the project root):
 The board
     A breadboard-style PCB, 89 x 52 mm, used whole (not cut). 30 rows. In every row A-E are
     joined and F-J are joined (like a breadboard); E and F are not. The power rails along both
-    long sides are not used. Rows 1-6 stay empty: the 90 deg USB-C adapter sits over them.
+    long sides are not used. The 90 deg USB-C adapter sits over rows ~3-8, in front of the XIAO.
     columns A..J   A-E | channel | F-J   (E to F = 3 x 2.54 mm, like a breadboard)
-    rows    1..30  row 1 at the -Y end; the XIAO's USB-C looks towards row 1
+    rows    1..30  as printed on the board. Seen from above: row 1 at the top, A on the left.
+    In the box row 1 is at the +Y end, column J (screw terminals) towards the motor.
 The XIAO and the TMC2209 straddle the channel, exactly like on the test breadboard.
 """
 
@@ -31,7 +32,6 @@ COL_X = {c: (i if i < 5 else i + GAP - 1) for i, c in enumerate(COLS)}   # A0..E
 ROWS = 30
 BOARD_W, BOARD_H = 52.0, 89.0
 MOUNT_DY = 73.5          # the board's 2 mounting holes, on the channel line, this far apart
-DY = 6                   # the layout starts 6 rows in (rows 1-6: room for the USB adapter)
 
 
 def hole(h: str) -> tuple[str, int]:
@@ -42,29 +42,29 @@ def hole(h: str) -> tuple[str, int]:
 # Components: pin -> hole
 # -----------------------------------------------------------------------------
 XIAO = {  # 2 x 7 female headers across the channel; parts side up, USB-C towards row 1.
-    # Measured on the board: the XIAO's GND (USB-C shell) is in column H, row 8.
-    "D0": "D7", "D1": "D8", "D2": "D9", "D3": "D10", "D4": "D11", "D5": "D12", "D6": "D13",
-    "5V": "H7", "GND": "H8", "3V3": "H9", "D10": "H10", "D9": "H11", "D8": "H12", "D7": "H13",
+    # As placed on the board (photo): D9 = D0, H9 = 5V (VUSB).
+    "D0": "D9", "D1": "D10", "D2": "D11", "D3": "D12", "D4": "D13", "D5": "D14", "D6": "D15",
+    "5V": "H9", "GND": "H10", "3V3": "H11", "D10": "H12", "D9": "H13", "D8": "H14", "D7": "H15",
 }
 TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towards the XIAO.
-    # Measured on the board: the driver's GND (last pin) is in column G, row 23.
-    "EN": "D16", "MS1": "D17", "MS2": "D18", "PDN": "D19", "USART": "D20", "CLK": "D21",
-    "STEP": "D22", "DIR": "D23",
-    "VM": "G16", "GND_P": "G17", "A2": "G18", "A1": "G19", "B1": "G20", "B2": "G21",
-    "VDD": "G22", "GND_L": "G23",
+    # As placed on the board (photo): D19 = EN, G19 = VM.
+    "EN": "D19", "MS1": "D20", "MS2": "D21", "PDN": "D22", "USART": "D23", "CLK": "D24",
+    "STEP": "D25", "DIR": "D26",
+    "VM": "G19", "GND_P": "G20", "A2": "G21", "A1": "G22", "B1": "G23", "B2": "G24",
+    "VDD": "G25", "GND_L": "G26",
 }
-R1 = {"1": "A11", "2": "A12"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
-R2 = {"1": "A15", "2": "A16"}        # 10k, standing: 3.3V bus -> EN
-C1 = {"+": "G27", "-": "G26"}       # 100uF / 35V, standing, next to the power terminal
-R3 = {"1": "I10", "2": "I14"}         # 330R, lying along column I: D10 strip -> LED wire
+R1 = {"1": "A13", "2": "A14"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
+R2 = {"1": "A18", "2": "A19"}        # 10k, standing: 3.3V bus -> EN
+C1 = {"+": "H28", "-": "H27"}       # 100uF / 35V, lying along column H towards row 30 (clear of the mounting screw)
+R3 = {"1": "I12", "2": "I16"}         # 330R, lying along column I: D10 strip -> LED wire
 # Screw terminals, 2.5 mm pitch (one pin per row, each pin on its own strip)
-MOTOR = {"1": "J18", "2": "J19", "3": "J20", "4": "J21"}   # 4 pins, on the driver's A2..B2 strips
-PWR = {"+24V": "J27", "0V": "J26"}                         # 2 pins: from the panel DC jack
+MOTOR = {"1": "J21", "2": "J22", "3": "J23", "4": "J24"}   # 4 pins, on the driver's A2..B2 strips
+PWR = {"+24V": "J28", "0V": "J27"}                         # 2 pins: from the panel DC jack
 PANEL = {"RST": "J1", "GND": "J2", "LED+": "J3"}           # 3 pins: panel RESET button and LED
 ENPAD = {"wire": "H1"}   # thin wire from the EN pad under the XIAO -> the RST terminal strip
-TERMINALS = [  # (holes, labels, wire openings face: +1 = out past column J, -1 = towards the middle)
+TERMINALS = [  # (holes, labels)
     ([MOTOR["1"], MOTOR["2"], MOTOR["3"], MOTOR["4"]], ["A2 blk", "A1 grn", "B1 red", "B2 blu"], 1),
-    ([PWR["+24V"], PWR["0V"]], ["+24V", "0V"], 1),
+    ([PWR["0V"], PWR["+24V"]], ["0V", "+24V"], 1),
     ([PANEL["RST"], PANEL["GND"], PANEL["LED+"]], ["RST", "GND", "LED+"], 1),
 ]
 
@@ -76,21 +76,21 @@ COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": M
 # (from, to, colour, what, side, drawing path through the gaps [(x, row)])
 # -----------------------------------------------------------------------------
 WIRES = [
-    ("E15", "F15", "#e08a00", "3.3V bus: join both halves of row 15", "top", []),
-    ("J9", "J15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", [(11.5, 9.5), (11.5, 14.5)]),
-    ("H15", "I22", "#e08a00", "3.3V bus -> VDD", "bottom", [(9.5, 15.5), (9.5, 21.5)]),
-    ("C8", "C16", "#7a7a7a", "D1 -> EN", "bottom", [(2.5, 8.5), (2.5, 15.5)]),
-    ("B9", "B22", "#1f6fd1", "D2 -> STEP", "bottom", [(1.5, 9.5), (1.5, 21.5)]),
-    ("C10", "C23", "#1f6fd1", "D3 -> DIR", "bottom", [(3.5, 10.5), (3.5, 22.5)]),
-    ("E12", "E20", "#7b3fb8", "D5 -> USART", "bottom", [(4.5, 12.5), (4.5, 19.5)]),
-    ("E17", "F17", "#222222", "MS1 -> GND (across the channel)", "top", []),
-    ("B17", "B18", "#222222", "MS2 -> MS1 / GND", "bottom", []),
-    ("I17", "I23", "#222222", "power GND <-> logic GND", "bottom", [(10.3, 17.5), (10.3, 22.5)]),
-    ("I8", "F23", "#222222", "XIAO GND -> GND", "bottom", [(10.7, 8.5), (10.7, 16.5), (7.5, 16.5), (7.5, 22.5)]),
-    ("H16", "H27", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.7, 16.5), (8.7, 26.5)]),
-    ("J23", "I26", "#222222", "0V: terminal -> GND", "bottom", [(11.5, 23.5), (11.5, 25.5), (10.5, 25.5)]),
-    ("G8", "G2", "#222222", "GND -> panel terminal", "bottom", [(7.5, 7.5), (7.5, 2.5)]),
-    ("J14", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 13.5), (11.5, 4.5), (9.0, 3.5)]),
+    ("E18", "F18", "#e08a00", "3.3V bus: join both halves of row 18", "top", []),
+    ("J11", "J18", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", [(11.5, 11.5), (11.5, 17.5)]),
+    ("H18", "I25", "#e08a00", "3.3V bus -> VDD", "bottom", [(9.5, 18.5), (9.5, 24.5)]),
+    ("C10", "C19", "#7a7a7a", "D1 -> EN", "bottom", [(2.5, 10.5), (2.5, 18.5)]),
+    ("B11", "B25", "#1f6fd1", "D2 -> STEP", "bottom", [(1.5, 11.5), (1.5, 24.5)]),
+    ("C12", "C26", "#1f6fd1", "D3 -> DIR", "bottom", [(3.5, 12.5), (3.5, 25.5)]),
+    ("E14", "E23", "#7b3fb8", "D5 -> USART", "bottom", [(4.5, 14.5), (4.5, 22.5)]),
+    ("E20", "F20", "#222222", "MS1 -> GND (across the channel)", "top", []),
+    ("B20", "B21", "#222222", "MS2 -> MS1 / GND", "bottom", []),
+    ("I20", "I26", "#222222", "power GND <-> logic GND", "bottom", [(10.3, 20.5), (10.3, 25.5)]),
+    ("I10", "F26", "#222222", "XIAO GND -> GND", "bottom", [(10.7, 10.5), (10.7, 18.7), (7.5, 18.7), (7.5, 25.5)]),
+    ("H19", "G28", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.7, 19.5), (8.7, 27.5), (8.0, 27.5)]),
+    ("J26", "I27", "#222222", "0V: terminal -> GND", "bottom", [(11.5, 26.5), (10.5, 26.8)]),
+    ("G10", "G2", "#222222", "GND -> panel terminal", "bottom", [(7.5, 9.5), (7.5, 2.5)]),
+    ("J16", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 15.5), (11.5, 4.5), (9.0, 3.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -220,19 +220,20 @@ def draw(mirror: bool, path: Path, title: str):
 
     if not mirror:
         # XIAO: 21 x 17.5 mm across the channel, USB-C over row 1
+        # XIAO: 21 x 17.5 mm (8.3 x 6.9 pitches) centred on its pins, USB-C at the row-1 end
+        xc = (int(XIAO["D0"][1:]) + int(XIAO["D6"][1:])) / 2
         cx = (COL_X["D"] + COL_X["H"]) / 2
-        ax.add_patch(Rectangle((cx - 3.44, 0.87 + DY), 6.88, 8.26, fc="#2b2f36", ec="#000",
+        ax.add_patch(Rectangle((cx - 3.44, xc - 4.13), 6.88, 8.26, fc="#2b2f36", ec="#000",
                                lw=1, alpha=0.9, zorder=5))
-        ax.add_patch(Rectangle((cx - 0.9, 0.2 + DY), 1.8, 0.9, fc="#c3c8ce", ec="#555", zorder=6))
-        ax.text(cx, 4.2 + DY, "XIAO\nESP32-C3\n↓ USB-C", ha="center", va="center", color="white",
-                fontsize=7, zorder=7)
-        # TMC2209: 15.3 x 20.3 mm across the channel, pot towards the XIAO
+        ax.add_patch(Rectangle((cx - 0.9, xc - 4.13 - 0.6), 1.8, 0.9, fc="#c3c8ce", ec="#555", zorder=6))
+        ax.text(cx, xc, "XIAO ESP32-C3", ha="center", va="center", color="white", fontsize=7, zorder=7)
+        # TMC2209: 15.3 x 20.3 mm (6 x 8 pitches) centred on its pins, pot at the EN end
+        tc = (int(TMC["EN"][1:]) + int(TMC["DIR"][1:])) / 2
         tx = (COL_X["D"] + COL_X["G"]) / 2
-        ax.add_patch(Rectangle((tx - 3.01, 9.5 + DY), 6.02, 8.0, fc="#1b1b1b", ec="#000", lw=1,
+        ax.add_patch(Rectangle((tx - 3.01, tc - 4.0), 6.02, 8.0, fc="#1b1b1b", ec="#000", lw=1,
                                alpha=0.9, zorder=5))
-        ax.add_patch(Circle((tx - 1.0, 10.3 + DY), 0.45, fc="#c7c7c7", zorder=6))
-        ax.text(tx, 14.2 + DY, "TMC2209\nheatsink up", ha="center", va="center", color="white",
-                fontsize=7, zorder=7)
+        ax.add_patch(Circle((tx + 1.0, tc - 3.2), 0.45, fc="#c7c7c7", zorder=6))
+        ax.text(tx, tc, "TMC2209", ha="center", va="center", color="white", fontsize=7, zorder=7)
         # resistors: lying ones drawn between their holes, standing ones as a short body
         for pm, name, fc in ((R1, "R1 1kΩ", "#d8c7a0"), (R2, "R2 10kΩ", "#9fc0e8"),
                              (R3, "R3 330Ω", "#e8b4b4")):
@@ -250,10 +251,11 @@ def draw(mirror: bool, path: Path, title: str):
                 ax.text(x1 - 0.6, lo + 0.5, name + " (standing)", fontsize=4.8, ha="right",
                         va="center", zorder=7)
         (cxp, cyp), (cxm, cym) = xy(C1["+"], False), xy(C1["-"], False)
-        ax.add_patch(Circle((cxp, (cyp + cym) / 2), 1.57, fc="#27303b", ec="#111", zorder=6.8))
-        ax.text(cxp, (cyp + cym) / 2, "C1 100µF", color="white", fontsize=4.6, ha="center",
-                va="center", zorder=7)
-        ax.text(cxp - 1.9, cyp, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
+        ax.add_patch(Rectangle((cxp - 1.57, max(cyp, cym) + 0.3), 3.14, 4.7, fc="#27303b", ec="#111",
+                               alpha=0.9, zorder=6.8))
+        ax.text(cxp, max(cyp, cym) + 2.6, "C1 100µF (lying)", color="white", fontsize=4.6,
+                ha="center", va="center", rotation=90, zorder=7)
+        ax.text(cxp - 0.6, cyp, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
         for holes, labels, face in TERMINALS:
             pts = [xy(h, False) for h in holes]
             x = pts[0][0]
@@ -266,7 +268,7 @@ def draw(mirror: bool, path: Path, title: str):
                 ax.text(x0 + 1.4, hy + 0.55, t, fontsize=4.6, ha="center", va="center",
                         fontweight="bold", color="white", zorder=9)
         ex, ey = xy(ENPAD["wire"], False)
-        ax.plot([ex, ex - 0.6, (COL_X["D"] + COL_X["H"]) / 2], [ey, ey + 1.5, 4.0 + DY],
+        ax.plot([ex, ex - 0.6, (COL_X["D"] + COL_X["H"]) / 2], [ey, ey + 1.5, (int(XIAO['D0'][1:]) + int(XIAO['D6'][1:])) / 2],
                 color="#9b59b6", lw=1.2, ls="--", zorder=7.5)
         ax.text(ex - 0.8, ey + 0.2, "EN pad wire", fontsize=4.5, ha="right", color="#9b59b6", zorder=9)
         for pin, h in XIAO.items():
@@ -301,6 +303,7 @@ def draw(mirror: bool, path: Path, title: str):
     ax.set_xlim(-mx - 3.6, X_MAX + mx + 3.4)
     ax.set_ylim(1 - my - 1.4, ROWS + my + 1.4)
     ax.set_aspect("equal")
+    ax.invert_yaxis()                     # row 1 at the top, like the numbers printed on the board
     ax.axis("off")
     ax.set_title(title, fontsize=10)
     fig.tight_layout()
@@ -314,8 +317,8 @@ def main():
           if not problems else "")
     for p in problems:
         print("  PROBLEM:", p)
-    draw(False, HERE / "top.png", "TOP (components) — row 1 at the bottom, USB-C looks down")
-    draw(True, HERE / "bottom.png", "BOTTOM (solder side) — mirrored left-right")
+    draw(False, HERE / "top.png", "TOP (components) — row 1 at the top, A on the left (as printed)")
+    draw(True, HERE / "bottom.png", "BOTTOM (solder side) — row 1 at the top, A on the RIGHT")
     print("wrote", HERE / "top.png", "and", HERE / "bottom.png")
     return 1 if problems else 0
 
