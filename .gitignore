@@ -13,3 +13,6 @@ dist/
 
 # Enclosure: intermediate meshes for the preview renderer
 enclosure/preview/parts/
+
+# Installer output (build.bat)
+/PetriTurn/

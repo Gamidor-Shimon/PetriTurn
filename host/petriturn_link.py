@@ -17,6 +17,8 @@ from pathlib import Path
 import serial
 import serial.tools.list_ports
 
+from petriturn_log import data_dir
+
 BAUD = 115200
 SHORT_TIMEOUT_S = 3.0     # commands that reply immediately
 RUN_MARGIN_S = 10.0       # extra time on top of the estimated program duration
@@ -45,7 +47,8 @@ class PetriTurnError(Exception):
 
 
 # ------------------------------------------------------------------------------------
-# Settings file: petriturn.ini, next to the scripts (or next to the .exe files once built).
+# Settings file: petriturn.ini, in data_dir(): C:\ProgramData\PetriTurn once installed, the host
+# folder while developing.
 # Both the robot CLI and the GUI read it, so the port is set in one place only.
 
 CONFIG_NAME = "petriturn.ini"
@@ -71,7 +74,7 @@ run_margin = 10
 poll_ms = 1000
 
 [logs]
-; Every action is logged to the "logs" folder next to the programs. Files are never deleted.
+; Every action is logged to the "logs" folder beside this file. Files are never deleted.
 ; A new file starts every day, and whenever the current file reaches this size (megabytes).
 max_mb = 5
 """
@@ -93,8 +96,7 @@ class Config:
 
 
 def config_path() -> Path:
-    base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
-    return base / CONFIG_NAME
+    return data_dir() / CONFIG_NAME
 
 
 def load_config(path: Path | None = None) -> Config:

@@ -40,8 +40,9 @@ PetriTurn/
 ├── README.md                      this document
 ├── WIRING.md                      pin-by-pin wiring: controller, driver, motor, power
 ├── Motor_Driver_Design_Notes.md   design notes: motor, driver, decisions, risks
-├── PetriTurn.bat               double-click to start the GUI (development PC)
-├── build.bat                      builds the customer package into dist\PetriTurn
+├── PetriTurn.bat                  development only: runs the GUI from source (.venv)
+├── build.bat                      builds the installer: PetriTurn\PetriTurn-Setup-<version>.exe
+├── installer/                     Inno Setup script + Gamidor wizard images
 ├── enclosure/                     3D-printed box: FreeCAD script, STL, STEP, previews
 ├── perfboard/                     controller board: layout + check, README generator, drawings
 ├── requirements.txt               Python packages
@@ -53,6 +54,7 @@ PetriTurn/
     ├── petriturn.py                 robot command line
     ├── petriturn_gui.py             control GUI
     ├── petriturn_link.py            shared code: serial link, programs, settings
+    ├── petriturn_log.py             audit log (logs folder, 5 MB parts, never deleted)
     ├── theme.py                   Gamidor design tokens (gamidor-ui-design skill)
     └── assets/                    logo and icon
 ```
@@ -158,7 +160,7 @@ python -m venv .venv
 
 ## קובץ ההגדרות petriturn.ini
 
-נמצא ב-`host/petriturn.ini` (אחרי בנייה: ליד קובצי ה-exe).
+נמצא ב-`C:\ProgramData\PetriTurn\petriturn.ini` אחרי התקנה (בפיתוח: `host/petriturn.ini`).
 **גם הרובוט וגם ה-GUI קוראים ממנו**, כך שהפורט מוגדר במקום אחד.
 אם הקובץ חסר — הוא נוצר מחדש עם ברירות המחדל.
 
@@ -191,8 +193,8 @@ max_mb = 5           ; size of one log file; a new file every day and at this si
 
 ## לוגים
 
-**כל פעולה נרשמת, וקבצי הלוג לא נמחקים אף פעם.** התיקייה `logs` נוצרת לבד ליד התוכנות
-(אצל הלקוח: `C:\PetriTurn\logs`).
+**כל פעולה נרשמת, וקבצי הלוג לא נמחקים אף פעם.** התיקייה נוצרת לבד:
+`C:\ProgramData\PetriTurn\logs` אחרי התקנה (בפיתוח: `host\logs`).
 
 | קובץ | מי כותב |
 |---|---|
@@ -445,22 +447,16 @@ PSET 1 Streak A|HOLD|ROT 90 20|WAIT 1500|ROT 90 20|WAIT 1500|ROT -180 10|RELEASE
 
 ---
 
-## בניית חבילה ללקוח
+## בניית קובץ ההתקנה
 
-מתיקיית הפרויקט (צריך את `.venv` מההתקנה הראשונה):
+מתיקיית הפרויקט (צריך את `.venv` מההתקנה הראשונה, ואת [Inno Setup 6](https://jrsoftware.org/isinfo.php)):
 
 ```bash
 build.bat
 ```
 
-החבילה נוצרת ב-`dist\PetriTurn`:
-
-| קובץ | תפקיד |
-|---|---|
-| `petriturn.exe` | שורת הפקודה לרובוט |
-| `petriturn_gui.exe` | תוכנת הניהול |
-| `petriturn.ini` | הגדרות — נקרא על ידי שניהם |
-| `README.md` | המסמך הזה |
+התוצאה: **`PetriTurn\PetriTurn-Setup-1.1.exe`** — קובץ אחד, שמתקין הכל.
+(`PetriTurn.bat` שבתיקיית הפרויקט הוא רק לפיתוח — מריץ את קוד המקור. ללקוח הוא לא מגיע.)
 
 ---
 
@@ -468,10 +464,12 @@ build.bat
 
 במחשב של הלקוח **לא צריך Python**, ולא צריך דרייבר ל-USB (Windows 10/11 מזהה את ה-XIAO לבד).
 
-1. להעתיק את התיקייה `PetriTurn` כולה, למשל ל-`C:\PetriTurn`.
-   - בתיקייה שיש בה הרשאת כתיבה (לא `C:\Program Files`) — התוכנה כותבת לידה את `petriturn.ini` ואת היומנים.
+1. להריץ את `PetriTurn-Setup-1.1.exe` (מבקש הרשאת מנהל). באשף:
+   - שפה: עברית או אנגלית;
+   - תיקיית ההתקנה (ברירת מחדל `C:\Program Files\PetriTurn`);
+   - **קיצור דרך בשולחן העבודה** — תיבת סימון.
 2. לחבר את הבקר ב-USB. לחבר 24V.
-3. להפעיל את `petriturn_gui.exe`, לבחור את הפורט ו-**Connect**.
+3. להפעיל את **PetriTurn Control Center** (שולחן העבודה / תפריט התחל), לבחור את הפורט ו-**Connect**.
    הפורט נשמר ב-`petriturn.ini` — מעכשיו גם `petriturn.exe` משתמש בו.
 4. **לבדוק כיוון:** בעמוד Manual control, סיבוב `0.25` (חיובי). הצלחת צריכה להסתובב
    **עם כיוון השעון כשמסתכלים עליה מלמעלה**. אם לא — לתקן `INVERT_DIR` בקושחה ולצרוב מחדש
@@ -481,10 +479,22 @@ build.bat
 7. להגדיר ברובוט את הקריאות, עם הנתיב המלא. למשל:
 
 ```bash
-C:\PetriTurn\petriturn.exe run 1
+"C:\Program Files\PetriTurn\petriturn.exe" run 1
 ```
 
    ולבדוק את קוד היציאה (`0` = הצליח).
+
+**איפה מה:**
+
+| מה | איפה |
+|---|---|
+| התוכנות, README, WIRING | תיקיית ההתקנה (`C:\Program Files\PetriTurn`) |
+| `petriturn.ini` (הגדרות) | `C:\ProgramData\PetriTurn` — כל משתמש במחשב יכול לכתוב, כולל החשבון של הרובוט |
+| הלוגים | `C:\ProgramData\PetriTurn\logs` |
+
+בתפריט התחל ← PetriTurn יש קיצורים לתיקיית הלוגים ולתיקיית ההגדרות.
+**הסרת התוכנה** (הגדרות ← אפליקציות) משאירה את `C:\ProgramData\PetriTurn` — ההגדרות והלוגים לא נמחקים.
+**עדכון גרסה:** להריץ את קובץ ההתקנה החדש — הוא מחליף את התוכנות ומשאיר הגדרות ולוגים.
 
 ---
 

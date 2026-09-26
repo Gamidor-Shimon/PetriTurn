@@ -29,7 +29,7 @@ import serial
 from PySide6 import QtGui, QtWidgets
 from PySide6.QtCore import QObject, QPoint, QSettings, Qt, QThread, QTimer, Signal, Slot
 
-from petriturn_log import AuditLog
+from petriturn_log import AuditLog, data_dir
 from petriturn_link import (DEFAULT_LIMITS, Config, ConfigError, PetriTurnError, PetriTurnLink, Program,
                           Step, list_ports, load_config, save_port)
 from theme import DARK, LIGHT, QSS, Pill, card, hsep, muted
@@ -109,11 +109,6 @@ ERROR_DETAIL = {
 def asset(name: str) -> str:
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return str(base / "assets" / name)
-
-
-def data_dir() -> Path:
-    """Next to the exe when frozen, next to this file otherwise."""
-    return Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 
 
 def fmt(x: float) -> str:
@@ -202,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._motion_widgets: list[QtWidgets.QWidget] = []      # + driver answering
         self._offline_widgets: list[QtWidgets.QWidget] = []     # only while disconnected
 
-        # audit log: logs/<date>_gui_001.log next to the programs, never deleted (petriturn_log.py)
+        # audit log: logs/<date>_gui_001.log in data_dir(), never deleted (petriturn_log.py)
         self.audit = AuditLog("gui", self.cfg.log_max_mb, data_dir() / "logs")
         self._log_error_shown = False
 
@@ -674,7 +669,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "exit 0 = OK   1 = timeout, device error or stopped   2 = bad command or empty slot")
         usage.setStyleSheet("font-family: Consolas, monospace;")
         cl.addWidget(usage)
-        cl.addWidget(muted("The port, baud rate and timeouts are in petriturn.ini next to the programs; "
+        cl.addWidget(muted(f"The port, baud rate and timeouts are in {data_dir() / 'petriturn.ini'}; "
                            "Connect here writes the port there, so the robot uses the same one. "
                            "Close this window first — only one program can hold the port.",
                            wrap=True))

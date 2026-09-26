@@ -18,9 +18,9 @@ Usage:
 Options:
     --port COM6                    serial port for this call only (default: petriturn.ini)
 
-Settings (port, baud rate, timeouts) live in petriturn.ini next to this program.
-Every call is logged (command, all serial traffic, result, exit code) to the "logs" folder next
-to this program: logs/<date>_robot_001.log, a new part every day or every [logs] max_mb.
+Settings (port, baud rate, timeouts) live in petriturn.ini, and every call is logged (command,
+all serial traffic, result, exit code) to logs/<date>_robot_001.log - a new part every day or
+every [logs] max_mb. Both in C:\\ProgramData\\PetriTurn once installed.
 
 Exit codes:
     0 = OK

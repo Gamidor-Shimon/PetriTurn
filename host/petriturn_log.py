@@ -1,6 +1,7 @@
 """
 Audit log for PetriTurn: every action of the robot CLI and the GUI is written to text files in a
-"logs" folder next to the programs. Nothing is ever deleted or overwritten.
+"logs" folder in data_dir() (C:\\ProgramData\\PetriTurn once installed). Nothing is ever deleted or
+overwritten.
 
 Files:  logs/2026-09-26_robot_001.log, logs/2026-09-26_gui_001.log, ...
         - a new file every day, per program (robot = petriturn.exe, gui = petriturn_gui.exe);
@@ -25,16 +26,21 @@ from pathlib import Path
 DEFAULT_MAX_MB = 5.0
 
 
-def program_dir() -> Path:
-    """Next to the exe when frozen, next to the scripts otherwise."""
-    return Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+def data_dir() -> Path:
+    """Where petriturn.ini and the logs live.
+    Installed (exe): C:\\ProgramData\\PetriTurn - Program Files is read-only for programs, and this
+    one folder is shared by every Windows user, so the robot and the GUI see the same settings/logs.
+    Development (scripts): the host folder."""
+    if getattr(sys, "frozen", False):
+        return Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PetriTurn"
+    return Path(__file__).parent
 
 
 class AuditLog:
     def __init__(self, source: str, max_mb: float = DEFAULT_MAX_MB, folder: Path | None = None):
         self.source = source                       # "robot" or "gui"
         self.max_bytes = int(max_mb * 1024 * 1024)
-        self.folder = folder or program_dir() / "logs"
+        self.folder = folder or data_dir() / "logs"
         self.pid = os.getpid()
         self.error: str | None = None              # last write error, None while all is well
         self.path: Path | None = None

@@ -1,23 +1,28 @@
 @echo off
-rem Builds the customer package into dist\PetriTurn:
-rem   petriturn.exe      robot command line
-rem   petriturn_gui.exe  program editor / manual control
-rem   petriturn.ini      settings (port, baud rate, timeouts) - read by both
-rem   README.md, WIRING.md
-rem Copy the whole dist\PetriTurn folder to the customer PC. Python is not needed there.
+rem Builds the PetriTurn installer:  PetriTurn\PetriTurn-Setup-<version>.exe
+rem One file: copy it to the customer PC and run it (Python is not needed there).
+rem   1. PyInstaller -> dist\PetriTurn\petriturn.exe (robot) and petriturn_gui.exe (GUI)
+rem   2. Inno Setup  -> the installer (installer\PetriTurn.iss)
 cd /d "%~dp0"
 rem PyInstaller's work folder can end up read-only, and then --clean fails: remove it first.
 if exist build (attrib -r build\* /s /d >nul & rmdir /s /q build)
+if exist dist\PetriTurn rmdir /s /q dist\PetriTurn
 set PYI=.venv\Scripts\python -m PyInstaller --noconfirm --clean --onefile --distpath dist\PetriTurn --workpath build --specpath build
 
 %PYI% --name petriturn --icon ..\host\assets\app.ico host\petriturn.py || goto :fail
 %PYI% --windowed --name petriturn_gui --icon ..\host\assets\app.ico --add-data "..\host\assets;assets" host\petriturn_gui.py || goto :fail
 
-copy /y host\petriturn.ini dist\PetriTurn\petriturn.ini >nul || goto :fail
-copy /y README.md dist\PetriTurn\README.md >nul || goto :fail
-copy /y WIRING.md dist\PetriTurn\WIRING.md >nul || goto :fail
+set ISCC=
+for %%P in ("%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" "%ProgramFiles%\Inno Setup 6\ISCC.exe" "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe") do if exist %%P set ISCC=%%P
+if not defined ISCC (
+    echo.
+    echo Inno Setup 6 is not installed - get it from https://jrsoftware.org/isinfo.php
+    goto :fail
+)
+%ISCC% /Q installer\PetriTurn.iss || goto :fail
 echo.
-echo Package ready: %~dp0dist\PetriTurn
+echo Installer ready:
+dir /b PetriTurn\PetriTurn-Setup-*.exe
 exit /b 0
 
 :fail
