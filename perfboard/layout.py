@@ -55,12 +55,12 @@ TMC = {  # 2 x 8 female headers across the channel; potentiometer / EN end towar
 }
 R1 = {"1": "A11", "2": "A12"}        # 1k, standing: D4 strip -> D5 strip (D5 is wired to USART)
 R2 = {"1": "A15", "2": "A16"}        # 10k, standing: 3.3V bus -> EN
-C1 = {"+": "J16", "-": "J17"}       # 100uF / 35V, lying flat over the unused rails
+C1 = {"+": "G27", "-": "G26"}       # 100uF / 35V, standing, next to the power terminal
 R3 = {"1": "I10", "2": "I14"}         # 330R, lying along column I: D10 strip -> LED wire
-# Screw terminals, 5.08 mm pitch (a pin on every second row, so each pin has its own strip)
-MOTOR = {"1": "J24", "2": "J26", "3": "J28", "4": "J30"}   # 4 pins (2 + 2): black, green, red, blue
-PWR = {"+24V": "A24", "0V": "A26"}                         # 2 pins: from the panel DC jack
-PANEL = {"RST": "J1", "GND": "J3", "LED+": "J5"}           # 3 pins: panel RESET button and LED
+# Screw terminals, 2.5 mm pitch (one pin per row, each pin on its own strip)
+MOTOR = {"1": "J18", "2": "J19", "3": "J20", "4": "J21"}   # 4 pins, on the driver's A2..B2 strips
+PWR = {"+24V": "J27", "0V": "J26"}                         # 2 pins: from the panel DC jack
+PANEL = {"RST": "J1", "GND": "J2", "LED+": "J3"}           # 3 pins: panel RESET button and LED
 ENPAD = {"wire": "H1"}   # thin wire from the EN pad under the XIAO -> the RST terminal strip
 TERMINALS = [  # (holes, labels, wire openings face: +1 = out past column J, -1 = towards the middle)
     ([MOTOR["1"], MOTOR["2"], MOTOR["3"], MOTOR["4"]], ["A2 blk", "A1 grn", "B1 red", "B2 blu"], 1),
@@ -78,23 +78,19 @@ COMPONENTS = {"XIAO": XIAO, "TMC": TMC, "R1": R1, "R2": R2, "C1": C1, "MOTOR": M
 WIRES = [
     ("E15", "F15", "#e08a00", "3.3V bus: join both halves of row 15", "top", []),
     ("J9", "J15", "#e08a00", "XIAO 3V3 -> 3.3V bus", "bottom", [(11.5, 9.5), (11.5, 14.5)]),
-    ("H15", "H22", "#e08a00", "3.3V bus -> VDD", "bottom", [(8.5, 15.5), (8.5, 21.5)]),
+    ("H15", "I22", "#e08a00", "3.3V bus -> VDD", "bottom", [(9.5, 15.5), (9.5, 21.5)]),
     ("C8", "C16", "#7a7a7a", "D1 -> EN", "bottom", [(2.5, 8.5), (2.5, 15.5)]),
     ("B9", "B22", "#1f6fd1", "D2 -> STEP", "bottom", [(1.5, 9.5), (1.5, 21.5)]),
     ("C10", "C23", "#1f6fd1", "D3 -> DIR", "bottom", [(3.5, 10.5), (3.5, 22.5)]),
     ("E12", "E20", "#7b3fb8", "D5 -> USART", "bottom", [(4.5, 12.5), (4.5, 19.5)]),
     ("E17", "F17", "#222222", "MS1 -> GND (across the channel)", "top", []),
     ("B17", "B18", "#222222", "MS2 -> MS1 / GND", "bottom", []),
-    ("I17", "I23", "#222222", "power GND <-> logic GND", "bottom", [(9.5, 17.5), (9.5, 22.5)]),
-    ("I8", "H23", "#222222", "XIAO GND -> GND", "bottom", [(10.5, 8.5), (10.5, 23.5), (9.0, 23.5)]),
-    ("J18", "I24", "#2e7d32", "motor A2 -> terminal", "bottom", [(11.5, 18.5), (11.5, 23.5), (10.0, 23.5)]),
-    ("J19", "I26", "#2e7d32", "motor A1 -> terminal", "bottom", [(11.7, 19.5), (11.7, 25.5), (10.0, 25.5)]),
-    ("J20", "I28", "#2e7d32", "motor B1 -> terminal", "bottom", [(11.9, 20.5), (11.9, 27.5), (10.0, 27.5)]),
-    ("J21", "I30", "#2e7d32", "motor B2 -> terminal", "bottom", [(12.1, 21.5), (12.1, 29.5), (10.0, 29.5)]),
-    ("H16", "C24", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.5, 16.5), (8.5, 23.2), (2.0, 23.2)]),
-    ("H17", "C26", "#222222", "0V: terminal -> GND", "bottom", [(9.0, 17.5), (9.0, 25.5), (2.0, 25.5)]),
-    ("G8", "G3", "#222222", "GND -> panel terminal", "bottom", [(7.5, 7.5), (7.5, 3.5)]),
-    ("J14", "H5", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 13.5), (11.5, 6.5), (9.0, 5.5)]),
+    ("I17", "I23", "#222222", "power GND <-> logic GND", "bottom", [(10.3, 17.5), (10.3, 22.5)]),
+    ("I8", "F23", "#222222", "XIAO GND -> GND", "bottom", [(10.7, 8.5), (10.7, 16.5), (7.5, 16.5), (7.5, 22.5)]),
+    ("H16", "H27", "#d62d20", "+24V: terminal -> VM", "bottom", [(8.7, 16.5), (8.7, 26.5)]),
+    ("J23", "I26", "#222222", "0V: terminal -> GND", "bottom", [(11.5, 23.5), (11.5, 25.5), (10.5, 25.5)]),
+    ("G8", "G2", "#222222", "GND -> panel terminal", "bottom", [(7.5, 7.5), (7.5, 2.5)]),
+    ("J14", "H3", "#2a9d3a", "LED+ -> panel terminal", "bottom", [(11.5, 13.5), (11.5, 4.5), (9.0, 3.5)]),
 ]
 
 # -----------------------------------------------------------------------------
@@ -253,16 +249,11 @@ def draw(mirror: bool, path: Path, title: str):
                                             fc=fc, ec="#555", zorder=7))
                 ax.text(x1 - 0.6, lo + 0.5, name + " (standing)", fontsize=4.8, ha="right",
                         va="center", zorder=7)
-        cxp, cyp = xy(C1["+"], False)
-        out = 1 if cxp > X_MAX / 2 else -1                     # lies outwards, over the rails
-        x0 = cxp + out * 0.4
-        ax.add_patch(Rectangle((min(x0, x0 + out * 3.0), cyp - 0.1), 3.0, 1.2, fc="#27303b",
-                               ec="#111", zorder=6))
-        for yy in (cyp, cyp + 1):
-            ax.plot([cxp, x0], [yy, yy], color="#999", lw=1, zorder=6)
-        ax.text(x0 + out * 1.5, cyp + 0.5, "C1 100µF", color="white", fontsize=4.6, ha="center",
+        (cxp, cyp), (cxm, cym) = xy(C1["+"], False), xy(C1["-"], False)
+        ax.add_patch(Circle((cxp, (cyp + cym) / 2), 1.57, fc="#27303b", ec="#111", zorder=6.8))
+        ax.text(cxp, (cyp + cym) / 2, "C1 100µF", color="white", fontsize=4.6, ha="center",
                 va="center", zorder=7)
-        ax.text(x0 + out * 0.1, cyp - 0.65, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
+        ax.text(cxp - 1.9, cyp, "+", color="#d62d20", fontsize=8, fontweight="bold", zorder=7)
         for holes, labels, face in TERMINALS:
             pts = [xy(h, False) for h in holes]
             x = pts[0][0]
